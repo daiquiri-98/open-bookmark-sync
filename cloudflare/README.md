@@ -1,27 +1,31 @@
 Cloudflare Worker OAuth Proxy for Raindrop.io
 
 Overview
-- This Worker keeps your Raindrop OAuth client secret server‑side and provides a unified OAuth flow for all browsers/extensions.
-- The Chrome/Edge/Firefox extension launches the Worker for login, which then redirects back to the extension with a one‑time session code. The extension exchanges that for tokens via the Worker.
+- Provides a fixed OAuth redirect at `https://<PUBLIC_BASE_URL>/auth/callback` so every browser uses the same URI.
+- Keeps the Raindrop OAuth client secret server-side and hands tokens back to the extension with a single-use session code.
+- Adds CORS helpers so the browser extension can call the Worker for token refreshes without extra configuration.
 
 Endpoints
 - GET /auth/start?ext_redirect=<extension_redirect>
-  - Creates a state in KV, redirects to Raindrop authorize URL.
+  - Stores the extension redirect URL and sends the user to the Raindrop authorize page.
 - GET /auth/callback
-  - Validates state, exchanges code->token with Raindrop, stores tokens in KV with a short TTL, redirects to ext_redirect with session_code.
+  - Exchanges the authorization code for tokens and redirects back to the extension with `session_code`.
 - GET /auth/fetch?session_code=...
-  - Returns tokens once, then deletes them.
+  - Returns tokens once and clears the session value.
 - POST /token/refresh { refresh_token }
-  - Exchanges refresh_token for a new access_token server‑side.
+  - Exchanges a refresh token for a new access token (supports CORS/OPTIONS).
+- OPTIONS *
+  - Handles preflight requests for the POST endpoint.
 
 Setup
-1) Create KV Namespace: SESSIONS
-2) Add Secrets:
-   - RAINDROP_CLIENT_ID
-   - RAINDROP_CLIENT_SECRET
-3) Add Env Var:
-   - PUBLIC_BASE_URL = https://raindrop-oauth.yourdomain.com
-4) Map custom domain (e.g., raindrop-oauth.daiquiri.dev) to the Worker.
+1. Create KV Namespace: `SESSIONS`.
+2. Add Secrets:
+   - `RAINDROP_CLIENT_ID`
+   - `RAINDROP_CLIENT_SECRET`
+3. Environment variables:
+   - `PUBLIC_BASE_URL` e.g. `https://raindrop-oauth.example.com`
+   - `CORS_ALLOW_ORIGIN` (optional, defaults to `*`) e.g. `chrome-extension://<extension-id>`
+4. Map a custom domain (e.g. `raindrop-oauth.example.com`) to the Worker so the redirect URI is stable.
 
 wrangler.toml (example)
 ```
@@ -34,17 +38,15 @@ kv_namespaces = [
 ]
 
 [vars]
-PUBLIC_BASE_URL = "https://raindrop-oauth.daiquiri.dev"
+PUBLIC_BASE_URL = "https://raindrop-oauth.example.com"
+CORS_ALLOW_ORIGIN = "chrome-extension://<extension-id>"
 ```
 
 Publish
-- wrangler publish
+- `wrangler publish`
 
 Security
-- session_code is single‑use with short TTL.
-- Client secret never leaves the Worker.
-- Consider adding basic rate limiting.
-
-Notes
-- If Raindrop adds PKCE, you could remove secret usage entirely and still keep a single redirect.
+- `session_code` entries are single-use with short TTLs (2 minutes by default).
+- The client secret never leaves the Worker and redirect URI remains constant.
+- Consider adding rate limiting via Durable Objects or Workers for Platforms.
 
