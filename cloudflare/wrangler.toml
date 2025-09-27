@@ -1,0 +1,10 @@
+name = "open-bookmark-sync-proxy"
+main = "worker.js"
+compatibility_date = "2025-01-01"
+workers_dev = true
+
+# Add these as plain-text variables in the Cloudflare dashboard or via `wrangler secret put`
+# RAINDROP_CLIENT_ID
+# RAINDROP_CLIENT_SECRET
+# SESSION_SECRET
+
