@@ -1,0 +1,86 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Open Bookmark Sync</title>
+  <style>
+    body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; margin:0; }
+    .wrap { width: 380px; padding: 14px; }
+    h1 { font-size: 16px; margin: 0 0 10px; }
+    .row { margin-bottom: 10px; }
+    .status { display:flex; align-items:center; justify-content: space-between; }
+    .dot { width:10px; height:10px; border-radius:50%; background:#ccc; }
+    .dot.ok { background:#28a745; }
+    .dot.err { background:#dc3545; }
+    button, select { font-size: 13px; padding: 6px 8px; }
+    .actions { display:flex; gap:8px; flex-wrap: wrap; }
+    .muted { color:#666; font-size:12px; }
+    .sep { height:1px; background:#eee; margin:8px 0; }
+    .right { margin-left: auto; }
+    .small { font-size:12px; }
+
+    /* Header */
+    .header { display:flex; align-items:center; justify-content: space-between; margin-bottom:8px; }
+    .header-actions { display:flex; align-items:center; gap:6px; }
+    .link-btn { background:#eef2f7; color:#333; border:none; border-radius:6px; padding:4px 8px; font-size:12px; font-weight:600; text-decoration:none; }
+    .link-btn:hover { filter:brightness(0.96); }
+    .primary { background:#5F7FFF; color:#fff; }
+  </style>
+  <script defer src="oauth.js"></script>
+  <script defer src="popup.js"></script>
+</head>
+<body>
+  <div class="wrap">
+    <div class="header">
+      <h1>Open Bookmark Sync</h1>
+      <div class="header-actions">
+        <button id="openSettings" class="link-btn primary">Open Options</button>
+      </div>
+    </div>
+
+    <div class="row status">
+      <div style="display:flex; align-items:center; gap:8px;">
+        <div id="dot" class="dot"></div>
+        <div id="statusText" class="muted">Checking…</div>
+      </div>
+      <button id="openSettingsSecondary" class="link-btn small">Full settings</button>
+    </div>
+
+    <div class="row actions">
+      <button id="syncNow" class="link-btn primary">Sync Now</button>
+      <button id="authenticate" class="link-btn">Authenticate</button>
+      <button id="logout" class="link-btn">Logout</button>
+    </div>
+
+    <div class="row">
+      <label class="small">Sync interval</label>
+      <select id="interval">
+        <option value="1">1 min</option>
+        <option value="5">5 min</option>
+        <option value="15">15 min</option>
+        <option value="30">30 min</option>
+        <option value="60">60 min</option>
+      </select>
+    </div>
+
+    <div class="row">
+      <label class="small">Sync mode</label>
+      <select id="twoWayMode">
+        <option value="additions_only">Two-way: Additions only</option>
+        <option value="mirror">Two-way: Mirror</option>
+        <option value="upload_only">One-way: Browser → Raindrop</option>
+        <option value="off">One-way: Raindrop → Browser</option>
+      </select>
+    </div>
+
+    <div class="sep"></div>
+    <div class="row muted small" id="msg"></div>
+    <div class="row" style="display:flex; gap:8px; justify-content:flex-end;">
+      <a id="siteLink" class="link-btn" href="#" target="_blank" rel="noopener noreferrer">Website</a>
+      <a id="bmcLink" class="link-btn" href="#" target="_blank" rel="noopener noreferrer">Support</a>
+    </div>
+  </div>
+  
+</body>
+</html>

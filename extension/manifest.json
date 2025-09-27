@@ -1,0 +1,35 @@
+{
+  "manifest_version": 3,
+  "name": "Open Bookmark Sync",
+  "version": "1.0.1",
+  "description": "Synchronizes Raindrop.io collections with Brave/Chrome bookmarks bar",
+
+  "permissions": [
+    "bookmarks",
+    "storage",
+    "alarms",
+    "identity"
+  ],
+
+  "host_permissions": [
+    "https://api.raindrop.io/*",
+    "https://raindrop.io/*"
+  ],
+
+  "background": {
+    "service_worker": "background.js"
+  },
+
+  "options_page": "options.html",
+
+  "action": {
+    "default_popup": "popup.html",
+    "default_title": "Open Bookmark Sync"
+  },
+
+  "icons": {
+    "16": "icon16.png",
+    "64": "icon64.png",
+    "128": "icon128.png"
+  }
+}

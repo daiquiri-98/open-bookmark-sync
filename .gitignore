@@ -1,0 +1,19 @@
+# Ignore OS & editor junk
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
+
+# Logs
+*.log
+
+# Archives
+*.zip
+*.crx
+*.pem
+
+# Node
+node_modules/
+
+# Blog post (kept local, not pushed)
+BLOG_POST.md
