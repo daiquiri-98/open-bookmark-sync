@@ -4543,7 +4543,10 @@ class OptionsManager {
   }
 
   async restoreLocalBackup(backupKey) {
-    const confirmed = confirm('⚠️ RESTORE FROM LOCAL BACKUP\n\nThis will restore bookmarks from the selected backup. Current bookmarks will be merged with backup contents.\n\nProceed with restore?');
+    const confirmed = await this.confirmWithText('⚠️ RESTORE FROM LOCAL BACKUP\n\nThis will restore bookmarks from the selected backup. Current bookmarks will be merged with backup contents.\n\nProceed with restore?', {
+      confirmText: 'Restore',
+      confirmVariant: 'primary'
+    });
     if (!confirmed) return;
 
     try {
