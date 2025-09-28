@@ -482,6 +482,141 @@
 
         .support-text { font-size: 14px; color: #444; line-height: 1.6; }
 
+        /* Loading spinner */
+        .spinner {
+            display: inline-block;
+            width: 16px;
+            height: 16px;
+            border: 2px solid #f3f3f3;
+            border-top: 2px solid #007cba;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+            margin-right: 8px;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        .button.loading {
+            position: relative;
+            color: transparent;
+        }
+
+        .button.loading::after {
+            content: '';
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            width: 16px;
+            height: 16px;
+            margin: -8px 0 0 -8px;
+            border: 2px solid transparent;
+            border-top: 2px solid currentColor;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+        }
+
+        /* Progress bar */
+        .progress-bar {
+            width: 100%;
+            height: 4px;
+            background-color: #f0f0f0;
+            border-radius: 2px;
+            overflow: hidden;
+            margin: 8px 0;
+        }
+
+        .progress-bar-fill {
+            height: 100%;
+            background-color: #007cba;
+            width: 0%;
+            transition: width 0.3s ease;
+        }
+
+        /* Auth status enhancements */
+        .auth-status.checking {
+            opacity: 0.7;
+        }
+
+        .status-details {
+            font-size: 12px;
+            color: #666;
+            margin-top: 4px;
+        }
+
+        /* Tooltips */
+        .tooltip {
+            position: relative;
+            display: inline-block;
+        }
+
+        .tooltip .tooltiptext {
+            visibility: hidden;
+            width: 200px;
+            background-color: #333;
+            color: #fff;
+            text-align: center;
+            border-radius: 6px;
+            padding: 8px;
+            position: absolute;
+            z-index: 1;
+            bottom: 125%;
+            left: 50%;
+            margin-left: -100px;
+            opacity: 0;
+            transition: opacity 0.3s;
+            font-size: 12px;
+            line-height: 1.4;
+        }
+
+        .tooltip .tooltiptext::after {
+            content: "";
+            position: absolute;
+            top: 100%;
+            left: 50%;
+            margin-left: -5px;
+            border-width: 5px;
+            border-style: solid;
+            border-color: #333 transparent transparent transparent;
+        }
+
+        .tooltip:hover .tooltiptext {
+            visibility: visible;
+            opacity: 1;
+        }
+
+        /* Enhanced error states */
+        .error-details {
+            background: #f8d7da;
+            border: 1px solid #f5c6cb;
+            border-radius: 4px;
+            padding: 12px;
+            margin: 8px 0;
+            font-size: 13px;
+            color: #721c24;
+        }
+
+        .error-details summary {
+            font-weight: 600;
+            cursor: pointer;
+            margin-bottom: 8px;
+        }
+
+        .error-details ul {
+            margin: 8px 0 0 20px;
+            padding: 0;
+        }
+
+        .warning-icon, .info-icon {
+            display: inline-block;
+            width: 16px;
+            height: 16px;
+            margin-right: 6px;
+            vertical-align: text-top;
+        }
+
         /* Support page styling */
         .support-section {
             margin: 24px 0;
@@ -586,14 +721,18 @@
             <div class="form-group">
                 <label class="checkbox-label" style="gap:8px; align-items:center; display:flex;">
                     <input type="checkbox" id="managedOAuth"> Use Managed OAuth via Cloudflare
+                    <span class="tooltip">
+                        <span style="cursor: help;">ℹ️</span>
+                        <span class="tooltiptext">Safer authentication method that keeps your Client Secret secure on Cloudflare servers instead of in the browser extension</span>
+                    </span>
                 </label>
-                <div class="help-text">When enabled, the extension delegates OAuth to your Cloudflare Worker.</div>
+                <div class="help-text">When enabled, authentication goes through your Cloudflare Worker (safer: no Client Secret in the extension). If this fails, we'll switch to Manual (Direct) mode with your extension identity Redirect URI.</div>
             </div>
 
             <div class="form-group" id="managedBaseGroup" style="display:block;">
                 <label for="managedOAuthBaseUrl">Managed OAuth Base URL</label>
                 <div class="input-row">
-                    <input type="url" id="managedOAuthBaseUrl" placeholder="https://login-with-raindrop.hello-a71.workers.dev" class="pre-filled" disabled>
+                    <input type="url" id="managedOAuthBaseUrl" placeholder="https://rdoauth.daiquiri.dev" class="pre-filled" disabled>
                     <button id="managedBaseEdit" type="button" class="toggle-eye" aria-label="Edit base URL">Edit</button>
                 </div>
                 <div class="help-text">Default is locked. Click Edit for manual override (beta/testing).</div>
@@ -623,21 +762,50 @@
 
             <div class="form-group">
                 <label for="redirectUri">Redirect URI</label>
-                <input type="url" id="redirectUri" class="pre-filled" placeholder="Extension identity redirect (auto)">
+                <div class="input-row">
+                    <input type="url" id="redirectUri" class="pre-filled" placeholder="Extension identity redirect (auto)">
+                    <button id="redirectReset" type="button" class="toggle-eye" aria-label="Reset to default">Reset</button>
+                </div>
                 <div class="help-text">Default is the extension identity URL (auto). You can override this for beta testing; ensure it matches what you registered in Raindrop.</div>
+                <div id="redirectHint" class="help-text" style="margin-top:6px;"></div>
             </div>
 
             <button id="saveConfig" class="button">Save Configuration</button>
 
             <h2>Authentication</h2>
-            <div class="auth-status">
+            <div class="auth-status" id="authStatus">
                 <div id="statusIndicator" class="status-indicator disconnected"></div>
                 <span id="authStatusText">Not authenticated</span>
+                <div id="statusDetails" class="status-details hidden"></div>
+                <div id="authProgress" class="progress-bar hidden">
+                    <div id="authProgressFill" class="progress-bar-fill"></div>
+                </div>
             </div>
-            <button id="authenticate" class="button">Authenticate with Raindrop.io</button>
+            <div id="managedAuthSection" class="hidden">
+                <div class="tooltip">
+                    <button id="authenticateManaged" class="button">Authenticate via Cloudflare (Managed)</button>
+                    <span class="tooltiptext">Secure authentication through your Cloudflare Worker. No sensitive data stored in browser.</span>
+                </div>
+            </div>
+            <div id="manualAuthSection" class="hidden">
+                <div class="tooltip">
+                    <button id="authenticateManual" class="button">Authenticate Direct (Manual)</button>
+                    <span class="tooltiptext">Direct authentication with Raindrop.io. Requires Client ID and Secret to be entered above.</span>
+                </div>
+            </div>
             <button id="testConnection" class="button secondary">Test Connection</button>
             <button id="logout" class="button danger hidden">Logout</button>
             <div id="userInfo" class="sync-info hidden"></div>
+
+            <div class="section" style="margin-top:16px;">
+                <h3>Debug</h3>
+                <div style="display:flex; gap:8px; flex-wrap:wrap;">
+                    <button id="viewAuthState" class="button secondary" type="button">View Auth State</button>
+                    <button id="runHealthCheck" class="button secondary" type="button">Run Health Check</button>
+                    <button id="clearTokens" class="button danger" type="button">Clear Tokens</button>
+                </div>
+                <pre id="authStateOut" style="background:#f8f9fa; border:1px solid #e6e9ef; padding:10px; border-radius:6px; margin-top:8px; max-height:220px; overflow:auto;"></pre>
+            </div>
         </div>
 
         <div class="section tab-panel" id="tab-sync" data-tab="sync">

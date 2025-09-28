@@ -8,6 +8,8 @@ Purpose
   - Added endpoints: /env-ok, /env-keys, /health for diagnostics.
   - Implemented Managed OAuth flow: /auth/start, /auth/callback, /auth/fetch, /token/refresh.
   - Session codes are HMAC-signed using SESSION_SECRET (no persistent storage).
+  - OAuth token exchange and refresh now use application/x-www-form-urlencoded per OAuth spec.
+  - Authorize endpoint updated to https://api.raindrop.io/v1/oauth/authorize to match current redirects.
   - Added compatibility shim to read bindings from both Module `env` and Service-Worker globals.
 - Cloudflare config
   - Added cloudflare/wrangler.toml with name = "login-with-raindrop", main = "worker.js".
@@ -21,6 +23,9 @@ Purpose
     - Redirect URI is now editable; default auto-filled via chrome.identity.
     - Added “Check Worker” button that calls /env-ok and shows inline status.
     - Visually softened disabled controls.
+    - Redirect URI row now has a Reset button to restore the default chrome.identity URL and validates for chromiumapp.org when Managed is ON.
+    - Added a Debug block: "View Auth State" (shows presence of tokens/settings) and "Clear Tokens" to reset.
+    - oauth.js now validates Worker /auth/fetch response and errors if no access_token is returned; logs payload for troubleshooting.
 - Docs
   - Consolidated developer docs into DEVELOPERS_GUIDE.md.
   - Updated README to English-only and clarified unpacked install path (`extension/`).
@@ -40,3 +45,6 @@ Known Issue (under investigation)
 Notes
 - Managed mode requires Worker secrets; Direct mode requires local Client ID/Secret + identity Redirect URI.
 - Avoid committing secrets in wrangler.toml; use Cloudflare variables or Wrangler secrets.
+- Defaults updated (Managed OAuth)
+  - Managed OAuth now defaults to ON and base URL defaults to https://rdoauth.daiquiri.dev.
+  - On authentication failure while Managed is ON, Options auto-switches to Manual (Direct) mode, resets Redirect URI to the default identity URL, and prompts the user to enter Client ID/Secret.

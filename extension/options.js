@@ -10,6 +10,7 @@ class OptionsManager {
     this.loadSupportLinks();
     const initialTab = document.querySelector('.tab-btn.active')?.dataset.tab || 'api';
     this.showTab(initialTab);
+    this.startTokenHealthCheck();
   }
 
   initializeElements() {
@@ -21,11 +22,24 @@ class OptionsManager {
       managedBaseEdit: document.getElementById('managedBaseEdit'),
       checkWorker: document.getElementById('checkWorker'),
       workerStatus: document.getElementById('workerStatus'),
+      viewAuthState: document.getElementById('viewAuthState'),
+      runHealthCheck: document.getElementById('runHealthCheck'),
+      clearTokens: document.getElementById('clearTokens'),
+      authStateOut: document.getElementById('authStateOut'),
       toggleClientId: document.getElementById('toggleClientId'),
       toggleClientSecret: document.getElementById('toggleClientSecret'),
       redirectUri: document.getElementById('redirectUri'),
+      redirectReset: document.getElementById('redirectReset'),
+      redirectHint: document.getElementById('redirectHint'),
       saveConfig: document.getElementById('saveConfig'),
-      authenticate: document.getElementById('authenticate'),
+      authenticateManaged: document.getElementById('authenticateManaged'),
+      authenticateManual: document.getElementById('authenticateManual'),
+      managedAuthSection: document.getElementById('managedAuthSection'),
+      manualAuthSection: document.getElementById('manualAuthSection'),
+      authStatus: document.getElementById('authStatus'),
+      statusDetails: document.getElementById('statusDetails'),
+      authProgress: document.getElementById('authProgress'),
+      authProgressFill: document.getElementById('authProgressFill'),
       testConnection: document.getElementById('testConnection'),
       logout: document.getElementById('logout'),
       syncNow: document.getElementById('syncNow'),
@@ -56,7 +70,8 @@ class OptionsManager {
   bindEvents() {
     const E = this.elements;
     E.saveConfig && E.saveConfig.addEventListener('click', () => this.saveConfiguration());
-    E.authenticate && E.authenticate.addEventListener('click', () => this.authenticate());
+    E.authenticateManaged && E.authenticateManaged.addEventListener('click', () => this.authenticateManaged());
+    E.authenticateManual && E.authenticateManual.addEventListener('click', () => this.authenticateManual());
     E.testConnection && E.testConnection.addEventListener('click', () => this.testConnection());
     E.logout && E.logout.addEventListener('click', () => this.logout());
     E.syncNow && E.syncNow.addEventListener('click', () => this.syncNow());
@@ -67,6 +82,11 @@ class OptionsManager {
     E.managedOAuth && E.managedOAuth.addEventListener('change', () => this.onManagedToggle());
     E.managedBaseEdit && E.managedBaseEdit.addEventListener('click', () => this.toggleManagedBaseEdit());
     E.checkWorker && E.checkWorker.addEventListener('click', () => this.checkWorker());
+    E.redirectReset && E.redirectReset.addEventListener('click', () => this.resetRedirectUri());
+    E.redirectUri && E.redirectUri.addEventListener('input', () => this.validateRedirectUri());
+    E.viewAuthState && E.viewAuthState.addEventListener('click', () => this.viewAuthState());
+    E.runHealthCheck && E.runHealthCheck.addEventListener('click', () => this.runHealthCheckUI());
+    E.clearTokens && E.clearTokens.addEventListener('click', () => this.clearTokens());
 
     E.toggleClientId && E.toggleClientId.addEventListener('click', () => this.toggleSecret(E.clientId, E.toggleClientId));
     E.toggleClientSecret && E.toggleClientSecret.addEventListener('click', () => this.toggleSecret(E.clientSecret, E.toggleClientSecret));
@@ -134,18 +154,72 @@ class OptionsManager {
   async checkWorker() {
     const base = (this.elements.managedOAuthBaseUrl?.value || '').replace(/\/$/, '');
     const status = this.elements.workerStatus;
-    if (!base) { if (status) status.textContent = 'Enter base URL first.'; return; }
+    if (!base) {
+      if (status) status.textContent = 'Enter base URL first.';
+      return { healthy: false, error: 'No base URL provided' };
+    }
+
     try {
       if (status) status.textContent = 'Checking…';
-      const res = await fetch(base + '/env-ok', { method: 'GET' });
+
+      const healthCheck = {
+        envCheck: false,
+        responseTime: 0,
+        version: null,
+        lastError: null
+      };
+
+      const startTime = Date.now();
+      const res = await fetch(base + '/env-ok', {
+        method: 'GET',
+        headers: { 'Cache-Control': 'no-cache' }
+      });
+      healthCheck.responseTime = Date.now() - startTime;
+
       const json = await res.json().catch(() => ({}));
       if (!res.ok) throw new Error('HTTP ' + res.status);
-      const ok = !!(json.hasClientId && json.hasClientSecret && json.hasSessionSecret);
-      if (status) status.textContent = ok ? 'Worker OK (env present)' : 'Worker missing env vars';
-      if (!ok) this.showMessage('Worker is missing variables. Check RAINDROP_CLIENT_ID/SECRET and SESSION_SECRET.', 'error');
+
+      healthCheck.envCheck = !!(json.hasClientId && json.hasClientSecret && json.hasSessionSecret);
+      healthCheck.version = json.version || 'unknown';
+
+      const isHealthy = healthCheck.envCheck && healthCheck.responseTime < 5000;
+
+      if (status) {
+        status.textContent = isHealthy
+          ? `✅ Worker OK (${healthCheck.responseTime}ms)`
+          : '❌ Worker has issues';
+        status.style.color = isHealthy ? '#28a745' : '#dc3545';
+      }
+
+      if (!healthCheck.envCheck) {
+        const suggestions = [
+          'Check RAINDROP_CLIENT_ID is set in your Cloudflare Worker',
+          'Check RAINDROP_CLIENT_SECRET is set in your Cloudflare Worker',
+          'Check SESSION_SECRET is set in your Cloudflare Worker',
+          'Redeploy your Cloudflare Worker with the correct environment variables'
+        ];
+        this.showDetailedError('Worker Configuration Issue', 'Worker is missing required environment variables', suggestions);
+      } else if (healthCheck.responseTime > 3000) {
+        this.showMessage(`Worker is slow (${healthCheck.responseTime}ms). This may affect authentication performance.`, 'info');
+      }
+
+      return { healthy: isHealthy, ...healthCheck };
+
     } catch (e) {
-      if (status) status.textContent = 'Worker check failed';
-      this.showMessage('Failed to reach Worker: ' + (e?.message || e), 'error');
+      if (status) {
+        status.textContent = '❌ Worker unreachable';
+        status.style.color = '#dc3545';
+      }
+
+      const suggestions = [
+        'Check if the Cloudflare Worker URL is correct',
+        'Verify the Worker is deployed and running',
+        'Check your internet connection',
+        'Try the Worker URL directly in your browser'
+      ];
+      this.showDetailedError('Worker Connection Failed', e?.message || 'Unknown error', suggestions);
+
+      return { healthy: false, error: e?.message || e };
     }
   }
 
@@ -170,10 +244,10 @@ class OptionsManager {
       // Force managed OAuth off in UI for now
       if (E.managedOAuth) {
         E.managedOAuth.disabled = false;
-        E.managedOAuth.checked = (config.managedOAuth ?? false);
+        E.managedOAuth.checked = (config.managedOAuth ?? true); // default ON
       }
       if (E.managedOAuthBaseUrl) {
-        const defaultBase = 'https://login-with-raindrop.hello-a71.workers.dev';
+        const defaultBase = 'https://rdoauth.daiquiri.dev';
         E.managedOAuthBaseUrl.value = config.managedOAuthBaseUrl || defaultBase;
         // Lock by default; can unlock via Edit button
         E.managedOAuthBaseUrl.disabled = true;
@@ -187,6 +261,7 @@ class OptionsManager {
         } else if (chrome.identity && chrome.identity.getRedirectURL) {
           E.redirectUri.value = chrome.identity.getRedirectURL();
         }
+        this.validateRedirectUri();
       }
 
       if (config.lastSyncTime && E.lastSyncTime) {
@@ -229,6 +304,54 @@ class OptionsManager {
     }
   }
 
+  resetRedirectUri() {
+    if (chrome.identity && chrome.identity.getRedirectURL) {
+      const url = chrome.identity.getRedirectURL();
+      if (this.elements.redirectUri) this.elements.redirectUri.value = url;
+      chrome.storage.sync.set({ redirectUri: url }).catch(() => {});
+      this.validateRedirectUri();
+      this.showMessage('Redirect URI reset to default', 'success');
+    } else {
+      this.showMessage('Unable to get default Redirect URI', 'error');
+    }
+  }
+
+  validateRedirectUri() {
+    const el = this.elements.redirectUri;
+    const hint = this.elements.redirectHint;
+    if (!el || !hint) return;
+    const v = (el.value || '').trim();
+    const isChromiumApp = /\.chromiumapp\.org\/?$/.test(v) || v.includes('.chromiumapp.org/');
+    const managedOn = !!this.elements.managedOAuth?.checked;
+    if (managedOn && !isChromiumApp) {
+      hint.textContent = 'Managed mode: Redirect URI should be your extension identity URL (…chromiumapp.org).';
+      hint.style.color = '#b54708'; // amber
+    } else {
+      hint.textContent = '';
+    }
+  }
+
+  async viewAuthState() {
+    try {
+      const keys = ['managedOAuth','managedOAuthBaseUrl','redirectUri','clientId','accessToken','refreshToken','tokenExpiresAt'];
+      const data = await chrome.storage.sync.get(keys);
+      const out = Object.fromEntries(Object.entries(data).map(([k,v]) => [k, k.includes('Token') ? (v ? `(present${typeof v === 'string' ? `:${v.slice(0,6)}…` : ''})` : '(missing)') : v]));
+      if (this.elements.authStateOut) this.elements.authStateOut.textContent = JSON.stringify(out, null, 2);
+    } catch (e) {
+      if (this.elements.authStateOut) this.elements.authStateOut.textContent = 'Failed to read auth state: ' + (e?.message || e);
+    }
+  }
+
+  async clearTokens() {
+    try {
+      await chrome.storage.sync.remove(['accessToken','refreshToken','tokenExpiresAt']);
+      if (this.elements.authStateOut) this.elements.authStateOut.textContent = 'Tokens cleared.';
+      await this.updateAuthStatus();
+    } catch (e) {
+      this.showMessage('Failed to clear tokens: ' + (e?.message || e), 'error');
+    }
+  }
+
   onManagedToggle() {
     this.updateManagedUi();
     this.saveConfiguration();
@@ -237,6 +360,15 @@ class OptionsManager {
   updateManagedUi() {
     const E = this.elements;
     const managed = !!this.elements.managedOAuth?.checked;
+
+    // Show/hide appropriate auth sections
+    if (E.managedAuthSection) {
+      E.managedAuthSection.classList.toggle('hidden', !managed);
+    }
+    if (E.manualAuthSection) {
+      E.manualAuthSection.classList.toggle('hidden', managed);
+    }
+
     // Disable ID/Secret when managed is on
     [E.clientId, E.clientSecret].forEach(el => { if (el) { el.disabled = managed; el.classList.toggle('pre-filled', managed); }});
     // Keep base URL field visible but locked by default; user can click Edit to override
@@ -1209,7 +1341,7 @@ class OptionsManager {
   async saveConfiguration() {
     try {
       const managedOAuth = !!this.elements.managedOAuth?.checked;
-      const managedOAuthBaseUrl = this.elements.managedOAuthBaseUrl?.value.trim() || 'https://login-with-raindrop.hello-a71.workers.dev';
+      const managedOAuthBaseUrl = this.elements.managedOAuthBaseUrl?.value.trim() || 'https://rdoauth.daiquiri.dev';
 
       let clientId = this.elements.clientId?.value.trim() || '';
       let clientSecret = this.elements.clientSecret?.value.trim() || '';
@@ -1231,21 +1363,92 @@ class OptionsManager {
     } catch (_) { this.showMessage('Failed to save configuration', 'error'); }
   }
 
-  async authenticate() {
+  async authenticateManaged() {
     try {
-      if (this.elements.authenticate) { this.elements.authenticate.disabled = true; this.elements.authenticate.textContent = 'Authenticating...'; }
+      this.setButtonLoading(this.elements.authenticateManaged, true);
+      this.setAuthStatus('Connecting...', 'Initializing Cloudflare authentication', true);
+      this.showProgress(true, 10, 'Starting authentication flow...');
+
+      // Force managed mode on
+      if (this.elements.managedOAuth) {
+        this.elements.managedOAuth.checked = true;
+        await this.saveConfiguration();
+      }
+
+      this.showProgress(true, 30, 'Redirecting to authentication...');
       const res = await this.oauth.startAuthFlow();
+
+      this.showProgress(true, 80, 'Processing authentication response...');
+
       if (res?.success) {
-        this.showMessage('Authentication successful!', 'success');
+        this.showProgress(true, 100, 'Authentication successful!');
+        this.showMessage('Managed authentication successful!', 'success');
         await this.updateAuthStatus();
         await this.loadUserInfo();
       } else {
-        this.showMessage('Authentication failed', 'error');
+        this.showMessage('Managed authentication failed', 'error');
+        this.setAuthStatus('Authentication failed', 'Please try again or use manual mode');
       }
     } catch (e) {
-      this.showMessage(`Authentication failed: ${e.message}`, 'error');
+      const suggestions = this.getErrorSuggestions(e.message);
+      this.showDetailedError('Managed Authentication Failed', e.message, suggestions);
+      this.setAuthStatus('Authentication error', e.message);
+
+      // Fallback suggestion
+      await this.suggestFallbackAuth('managed-to-manual', e.message);
     } finally {
-      if (this.elements.authenticate) { this.elements.authenticate.disabled = false; this.elements.authenticate.textContent = 'Authenticate with Raindrop.io'; }
+      this.setButtonLoading(this.elements.authenticateManaged, false);
+      this.showProgress(false);
+    }
+  }
+
+  async authenticateManual() {
+    try {
+      this.setButtonLoading(this.elements.authenticateManual, true);
+      this.setAuthStatus('Validating...', 'Checking credentials', true);
+      this.showProgress(true, 10, 'Validating configuration...');
+
+      // Force managed mode off
+      if (this.elements.managedOAuth) {
+        this.elements.managedOAuth.checked = false;
+        this.updateManagedUi();
+        await this.saveConfiguration();
+      }
+
+      // Validate required fields for manual mode
+      const clientId = this.elements.clientId?.value.trim();
+      const clientSecret = this.elements.clientSecret?.value.trim();
+
+      const { sanitized, validation } = this.sanitizeCredentials(clientId, clientSecret);
+
+      if (!validation.valid) {
+        const suggestions = validation.errors.map(error => `Fix: ${error}`);
+        this.showDetailedError('Invalid Credentials', validation.errors.join(', '), suggestions);
+        this.setAuthStatus('Configuration incomplete', 'Invalid credentials provided');
+        return;
+      }
+
+      this.showProgress(true, 30, 'Starting direct authentication...');
+      const res = await this.oauth.startAuthFlow();
+
+      this.showProgress(true, 80, 'Processing authentication...');
+
+      if (res?.success) {
+        this.showProgress(true, 100, 'Authentication complete!');
+        this.showMessage('Manual authentication successful!', 'success');
+        await this.updateAuthStatus();
+        await this.loadUserInfo();
+      } else {
+        this.showMessage('Manual authentication failed', 'error');
+        this.setAuthStatus('Authentication failed', 'Check your credentials and try again');
+      }
+    } catch (e) {
+      const suggestions = this.getErrorSuggestions(e.message);
+      this.showDetailedError('Manual Authentication Failed', e.message, suggestions);
+      this.setAuthStatus('Authentication error', e.message);
+    } finally {
+      this.setButtonLoading(this.elements.authenticateManual, false);
+      this.showProgress(false);
     }
   }
 
@@ -1335,9 +1538,490 @@ class OptionsManager {
     try { this.elements.statusMessage.scrollIntoView({ behavior: 'smooth', block: 'nearest' }); } catch (_) {}
     if (type === 'success') setTimeout(() => { this.elements.statusMessage.classList.add('hidden'); }, 3000);
   }
+
+  setButtonLoading(button, loading, originalText = null) {
+    if (!button) return;
+    if (loading) {
+      button.disabled = true;
+      button.classList.add('loading');
+      button.dataset.originalText = button.textContent;
+    } else {
+      button.disabled = false;
+      button.classList.remove('loading');
+      button.textContent = originalText || button.dataset.originalText || button.textContent;
+    }
+  }
+
+  showProgress(show, percentage = 0, details = '') {
+    if (this.elements.authProgress) {
+      this.elements.authProgress.classList.toggle('hidden', !show);
+    }
+    if (this.elements.authProgressFill) {
+      this.elements.authProgressFill.style.width = `${percentage}%`;
+    }
+    if (this.elements.statusDetails) {
+      this.elements.statusDetails.classList.toggle('hidden', !details);
+      if (details) this.elements.statusDetails.textContent = details;
+    }
+  }
+
+  setAuthStatus(status, details = '', checking = false) {
+    if (this.elements.authStatus) {
+      this.elements.authStatus.classList.toggle('checking', checking);
+    }
+    if (this.elements.authStatusText) {
+      this.elements.authStatusText.textContent = status;
+    }
+    this.showProgress(false, 0, details);
+  }
+
+  showDetailedError(message, error, suggestions = []) {
+    const errorHtml = `
+      <div class="error-details">
+        <details>
+          <summary>❌ ${message}</summary>
+          <div style="margin-top: 8px;">
+            <strong>Error details:</strong> ${error}
+            ${suggestions.length > 0 ? `
+              <p><strong>Possible solutions:</strong></p>
+              <ul>
+                ${suggestions.map(s => `<li>${s}</li>`).join('')}
+              </ul>
+            ` : ''}
+          </div>
+        </details>
+      </div>
+    `;
+
+    if (this.elements.statusMessage) {
+      this.elements.statusMessage.innerHTML = errorHtml;
+      this.elements.statusMessage.className = 'status error';
+      this.elements.statusMessage.classList.remove('hidden');
+    }
+  }
+
+  getErrorSuggestions(error) {
+    const errorMsg = error.toLowerCase();
+
+    if (errorMsg.includes('network') || errorMsg.includes('fetch')) {
+      return [
+        'Check your internet connection',
+        'Verify Cloudflare Worker URL is correct',
+        'Try again in a few moments'
+      ];
+    }
+
+    if (errorMsg.includes('401') || errorMsg.includes('unauthorized')) {
+      return [
+        'Check your Client ID and Secret are correct',
+        'Ensure your Raindrop.io app is properly configured',
+        'Try re-entering your credentials'
+      ];
+    }
+
+    if (errorMsg.includes('cors') || errorMsg.includes('blocked')) {
+      return [
+        'Check browser extension permissions',
+        'Verify redirect URI matches your app configuration',
+        'Try using Managed OAuth instead'
+      ];
+    }
+
+    return [
+      'Check browser console for more details',
+      'Try refreshing the page and attempting again',
+      'Contact support if the problem persists'
+    ];
+  }
+
+  async validateTokenSecurity() {
+    try {
+      const { accessToken, tokenExpiresAt, refreshToken } = await chrome.storage.sync.get(['accessToken', 'tokenExpiresAt', 'refreshToken']);
+
+      if (!accessToken) {
+        return { valid: false, reason: 'No access token found' };
+      }
+
+      // Check expiration
+      if (tokenExpiresAt && Date.now() > tokenExpiresAt) {
+        if (refreshToken) {
+          try {
+            await this.oauth.refreshAccessToken();
+            return { valid: true, refreshed: true };
+          } catch (e) {
+            return { valid: false, reason: 'Token expired and refresh failed', error: e.message };
+          }
+        } else {
+          return { valid: false, reason: 'Token expired, no refresh token available' };
+        }
+      }
+
+      // Test token validity with API call
+      const result = await this.oauth.testConnection();
+      if (result?.success) {
+        return { valid: true, user: result.user };
+      } else {
+        return { valid: false, reason: 'Token invalid or API test failed' };
+      }
+    } catch (error) {
+      return { valid: false, reason: 'Token validation error', error: error.message };
+    }
+  }
+
+  sanitizeCredentials(clientId, clientSecret) {
+    // Basic sanitization and validation
+    const sanitized = {
+      clientId: (clientId || '').trim(),
+      clientSecret: (clientSecret || '').trim()
+    };
+
+    const validation = {
+      valid: true,
+      errors: []
+    };
+
+    if (!sanitized.clientId) {
+      validation.errors.push('Client ID is required');
+    } else if (sanitized.clientId.length < 10) {
+      validation.errors.push('Client ID seems too short');
+    }
+
+    if (!sanitized.clientSecret) {
+      validation.errors.push('Client Secret is required');
+    } else if (sanitized.clientSecret.length < 20) {
+      validation.errors.push('Client Secret seems too short');
+    }
+
+    // Check for common patterns that might indicate invalid credentials
+    if (sanitized.clientId.includes(' ') || sanitized.clientSecret.includes(' ')) {
+      validation.errors.push('Credentials should not contain spaces');
+    }
+
+    validation.valid = validation.errors.length === 0;
+    return { sanitized, validation };
+  }
+
+  startTokenHealthCheck() {
+    // Check token health every 10 minutes
+    setInterval(async () => {
+      const validation = await this.validateTokenSecurity();
+      if (!validation.valid && validation.reason !== 'No access token found') {
+        console.warn('Token health check failed:', validation.reason);
+        this.setAuthStatus('Token issue detected', validation.reason);
+      }
+    }, 10 * 60 * 1000);
+
+    // Also check configuration health
+    this.startConfigHealthCheck();
+  }
+
+  startConfigHealthCheck() {
+    // Check configuration every 5 minutes
+    setInterval(async () => {
+      const healthReport = await this.validateConfiguration();
+      if (healthReport.warnings.length > 0) {
+        console.warn('Configuration warnings:', healthReport.warnings);
+      }
+    }, 5 * 60 * 1000);
+  }
+
+  async validateConfiguration() {
+    const config = await chrome.storage.sync.get([
+      'managedOAuth', 'managedOAuthBaseUrl', 'clientId', 'clientSecret',
+      'redirectUri', 'syncEnabled', 'syncIntervalMinutes'
+    ]);
+
+    const healthReport = {
+      valid: true,
+      warnings: [],
+      errors: [],
+      suggestions: []
+    };
+
+    // Check managed OAuth configuration
+    if (config.managedOAuth) {
+      if (!config.managedOAuthBaseUrl) {
+        healthReport.errors.push('Managed OAuth enabled but no base URL configured');
+        healthReport.suggestions.push('Set a valid Cloudflare Worker URL');
+      } else {
+        // Test worker health if in managed mode
+        try {
+          const workerHealth = await this.checkWorker();
+          if (!workerHealth.healthy) {
+            healthReport.warnings.push('Cloudflare Worker is not responding correctly');
+            healthReport.suggestions.push('Check your Worker deployment and environment variables');
+          }
+        } catch (e) {
+          healthReport.warnings.push('Could not verify Worker health');
+        }
+      }
+    } else {
+      // Manual mode - check credentials
+      if (!config.clientId || !config.clientSecret) {
+        healthReport.errors.push('Manual OAuth mode requires both Client ID and Secret');
+        healthReport.suggestions.push('Enter your Raindrop.io app credentials');
+      }
+    }
+
+    // Check sync configuration
+    if (config.syncEnabled) {
+      const interval = Number(config.syncIntervalMinutes) || 5;
+      if (interval < 1) {
+        healthReport.warnings.push('Sync interval is too short (< 1 minute)');
+        healthReport.suggestions.push('Set sync interval to at least 1 minute to avoid rate limits');
+      } else if (interval > 60) {
+        healthReport.warnings.push('Sync interval is very long (> 1 hour)');
+        healthReport.suggestions.push('Consider a shorter interval for more frequent updates');
+      }
+    }
+
+    // Check redirect URI
+    if (config.redirectUri && !config.redirectUri.includes('chromiumapp.org')) {
+      healthReport.warnings.push('Redirect URI may not be correct for browser extension');
+      healthReport.suggestions.push('Use the default extension identity URL for redirect URI');
+    }
+
+    healthReport.valid = healthReport.errors.length === 0;
+    return healthReport;
+  }
+
+  async runFullHealthCheck() {
+    const results = {
+      configuration: await this.validateConfiguration(),
+      token: await this.validateTokenSecurity(),
+      worker: null,
+      timestamp: Date.now()
+    };
+
+    // Check worker if in managed mode
+    const { managedOAuth } = await chrome.storage.sync.get(['managedOAuth']);
+    if (managedOAuth) {
+      results.worker = await this.checkWorker();
+    }
+
+    return results;
+  }
+
+  async runHealthCheckUI() {
+    try {
+      this.setButtonLoading(this.elements.runHealthCheck, true);
+      if (this.elements.authStateOut) {
+        this.elements.authStateOut.textContent = 'Running comprehensive health check...';
+      }
+
+      const healthResults = await this.runFullHealthCheck();
+
+      const report = this.formatHealthReport(healthResults);
+      if (this.elements.authStateOut) {
+        this.elements.authStateOut.innerHTML = report;
+      }
+
+      // Show summary message
+      const hasErrors = healthResults.configuration.errors.length > 0 ||
+                       (healthResults.worker && !healthResults.worker.healthy) ||
+                       !healthResults.token.valid;
+
+      if (hasErrors) {
+        this.showMessage('Health check found issues. See debug output for details.', 'error');
+      } else {
+        this.showMessage('Health check passed! All systems are operational.', 'success');
+      }
+
+    } catch (error) {
+      if (this.elements.authStateOut) {
+        this.elements.authStateOut.textContent = `Health check failed: ${error.message}`;
+      }
+      this.showMessage(`Health check failed: ${error.message}`, 'error');
+    } finally {
+      this.setButtonLoading(this.elements.runHealthCheck, false);
+    }
+  }
+
+  formatHealthReport(results) {
+    const formatTimestamp = (ts) => new Date(ts).toLocaleString();
+
+    let report = `<div style="font-family: monospace; font-size: 12px;">`;
+    report += `<strong>🔍 Health Check Report</strong><br>`;
+    report += `Generated: ${formatTimestamp(results.timestamp)}<br><br>`;
+
+    // Configuration
+    report += `<strong>📋 Configuration:</strong><br>`;
+    if (results.configuration.valid) {
+      report += `✅ Valid<br>`;
+    } else {
+      report += `❌ Issues found<br>`;
+      results.configuration.errors.forEach(error => {
+        report += `  • Error: ${error}<br>`;
+      });
+    }
+    if (results.configuration.warnings.length > 0) {
+      results.configuration.warnings.forEach(warning => {
+        report += `  ⚠️ Warning: ${warning}<br>`;
+      });
+    }
+    report += `<br>`;
+
+    // Token
+    report += `<strong>🔐 Authentication:</strong><br>`;
+    if (results.token.valid) {
+      report += `✅ Valid${results.token.refreshed ? ' (refreshed)' : ''}<br>`;
+      if (results.token.user) {
+        report += `  User: ${results.token.user.name || results.token.user.email || 'Unknown'}<br>`;
+      }
+    } else {
+      report += `❌ ${results.token.reason}<br>`;
+      if (results.token.error) {
+        report += `  Error: ${results.token.error}<br>`;
+      }
+    }
+    report += `<br>`;
+
+    // Worker (if applicable)
+    if (results.worker) {
+      report += `<strong>☁️ Cloudflare Worker:</strong><br>`;
+      if (results.worker.healthy) {
+        report += `✅ Healthy (${results.worker.responseTime}ms)<br>`;
+        if (results.worker.version) {
+          report += `  Version: ${results.worker.version}<br>`;
+        }
+      } else {
+        report += `❌ Unhealthy<br>`;
+        if (results.worker.error) {
+          report += `  Error: ${results.worker.error}<br>`;
+        }
+      }
+      report += `<br>`;
+    }
+
+    // Suggestions
+    const allSuggestions = [
+      ...results.configuration.suggestions,
+      ...(results.token.suggestions || [])
+    ];
+
+    if (allSuggestions.length > 0) {
+      report += `<strong>💡 Suggestions:</strong><br>`;
+      allSuggestions.forEach(suggestion => {
+        report += `  • ${suggestion}<br>`;
+      });
+    }
+
+    report += `</div>`;
+    return report;
+  }
+
+  async suggestFallbackAuth(fallbackType, originalError) {
+    // Add a delay to not overwhelm the user immediately
+    setTimeout(() => {
+      const fallbackSuggestions = this.getFallbackSuggestions(fallbackType, originalError);
+      if (fallbackSuggestions.length > 0) {
+        this.showFallbackOptions(fallbackType, fallbackSuggestions);
+      }
+    }, 2000);
+  }
+
+  getFallbackSuggestions(fallbackType, error) {
+    const errorMsg = error.toLowerCase();
+
+    switch (fallbackType) {
+      case 'managed-to-manual':
+        if (errorMsg.includes('network') || errorMsg.includes('worker') || errorMsg.includes('cloudflare')) {
+          return [
+            {
+              title: 'Try Manual Authentication',
+              description: 'Switch to direct authentication with your credentials',
+              action: 'switch-to-manual',
+              priority: 'high'
+            }
+          ];
+        }
+        break;
+
+      case 'manual-to-managed':
+        if (errorMsg.includes('cors') || errorMsg.includes('redirect') || errorMsg.includes('identity')) {
+          return [
+            {
+              title: 'Try Managed Authentication',
+              description: 'Use Cloudflare Worker for safer authentication',
+              action: 'switch-to-managed',
+              priority: 'medium'
+            }
+          ];
+        }
+        break;
+    }
+
+    return [];
+  }
+
+  showFallbackOptions(fallbackType, suggestions) {
+    const container = document.createElement('div');
+    container.className = 'fallback-suggestions';
+    container.style.cssText = `
+      background: #f0f8ff;
+      border: 1px solid #4a90e2;
+      border-radius: 6px;
+      padding: 12px;
+      margin: 12px 0;
+      position: relative;
+    `;
+
+    const html = `
+      <div style="display: flex; align-items: center; margin-bottom: 8px;">
+        <span style="color: #4a90e2; margin-right: 8px;">💡</span>
+        <strong style="color: #2c5aa0;">Alternative Authentication Method</strong>
+        <button onclick="this.parentElement.parentElement.parentElement.remove()"
+                style="margin-left: auto; background: none; border: none; font-size: 18px; cursor: pointer; color: #999;">×</button>
+      </div>
+      ${suggestions.map(s => `
+        <div style="margin: 8px 0;">
+          <div style="font-weight: 500; color: #2c5aa0;">${s.title}</div>
+          <div style="font-size: 13px; color: #666; margin: 4px 0;">${s.description}</div>
+          <button onclick="window.optionsManager.executeFallback('${s.action}')"
+                  class="button secondary" style="margin-top: 6px; padding: 6px 12px; font-size: 12px;">
+            Try This Method
+          </button>
+        </div>
+      `).join('')}
+    `;
+
+    container.innerHTML = html;
+
+    // Insert after status message
+    const statusMessage = this.elements.statusMessage;
+    if (statusMessage && statusMessage.parentNode) {
+      statusMessage.parentNode.insertBefore(container, statusMessage.nextSibling);
+    }
+  }
+
+  async executeFallback(action) {
+    switch (action) {
+      case 'switch-to-manual':
+        if (this.elements.managedOAuth) {
+          this.elements.managedOAuth.checked = false;
+          this.updateManagedUi();
+          await this.saveConfiguration();
+          this.showMessage('Switched to Manual mode. Please enter your Client ID and Secret above, then try authenticating.', 'info');
+        }
+        break;
+
+      case 'switch-to-managed':
+        if (this.elements.managedOAuth) {
+          this.elements.managedOAuth.checked = true;
+          this.updateManagedUi();
+          await this.saveConfiguration();
+          this.showMessage('Switched to Managed mode. You can now try Cloudflare authentication.', 'info');
+        }
+        break;
+    }
+
+    // Remove fallback suggestions
+    document.querySelectorAll('.fallback-suggestions').forEach(el => el.remove());
+  }
 }
 
 document.addEventListener('DOMContentLoaded', () => {
   const app = new OptionsManager();
+  window.optionsManager = app; // Global reference for fallback buttons
   try { app.openRoadmapLink?.(); } catch (_) {}
 });

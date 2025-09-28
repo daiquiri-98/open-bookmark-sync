@@ -13,7 +13,9 @@
 
   "host_permissions": [
     "https://api.raindrop.io/*",
-    "https://raindrop.io/*"
+    "https://raindrop.io/*",
+    "https://*.workers.dev/*",
+    "https://*.daiquiri.dev/*"
   ],
 
   "background": {

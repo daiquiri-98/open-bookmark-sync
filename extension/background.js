@@ -149,8 +149,8 @@ class RaindropSync {
     if (config.refreshToken) {
       try {
         let refreshResponse;
-        if (config.managedOAuth && MANAGED_OAUTH_ENABLED) {
-          const base = (config.managedOAuthBaseUrl || 'https://raindrop-oauth.daiquiri.dev').replace(/\/$/, '');
+        if ((config.managedOAuth && MANAGED_OAUTH_ENABLED) || (!config.clientSecret && config.managedOAuthBaseUrl)) {
+          const base = (config.managedOAuthBaseUrl || 'https://rdoauth.daiquiri.dev').replace(/\/$/, '');
           refreshResponse = await this.apiFetch(base + '/token/refresh', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
@@ -1074,4 +1074,4 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
   }
 });
 // Temporarily disable Managed OAuth flow in background
-const MANAGED_OAUTH_ENABLED = false;
+const MANAGED_OAUTH_ENABLED = true;

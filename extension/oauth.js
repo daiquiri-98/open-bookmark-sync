@@ -108,11 +108,21 @@ class RaindropOAuth {
     if (!res.ok) throw new Error(`Failed to fetch tokens: ${res.status}`);
     const tokenData = await res.json();
 
-    await chrome.storage.sync.set({
-      accessToken: tokenData.access_token,
-      refreshToken: tokenData.refresh_token,
-      tokenExpiresAt: Date.now() + (tokenData.expires_in * 1000)
-    });
+    if (!tokenData || !tokenData.access_token) {
+      console.error('Managed OAuth: /auth/fetch returned unexpected payload:', tokenData);
+      throw new Error('Worker returned no access token');
+    }
+
+    try {
+      await chrome.storage.sync.set({
+        accessToken: tokenData.access_token,
+        refreshToken: tokenData.refresh_token,
+        tokenExpiresAt: Date.now() + ((tokenData.expires_in || 3600) * 1000)
+      });
+    } catch (e) {
+      console.error('Failed to save tokens to storage:', e);
+      throw new Error('Failed to save tokens');
+    }
 
     return { success: true, message: 'Authentication successful' };
   }

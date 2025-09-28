@@ -74,7 +74,7 @@ export default {
     const statePayload = { ext_redirect: extRedirect, nonce: crypto.getRandomValues(new Uint32Array(1))[0].toString(16), t: Date.now() };
     const state = this._b64urlEncode(JSON.stringify(statePayload));
 
-    const authorize = new URL('https://raindrop.io/oauth/authorize');
+    const authorize = new URL('https://api.raindrop.io/v1/oauth/authorize');
     authorize.searchParams.set('client_id', env.RAINDROP_CLIENT_ID);
     authorize.searchParams.set('redirect_uri', `${base}/auth/callback`);
     authorize.searchParams.set('response_type', 'code');
@@ -106,14 +106,14 @@ export default {
     const base = this._baseUrl(url);
     const tokenRes = await fetch('https://raindrop.io/oauth/access_token', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
+      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+      body: new URLSearchParams({
         client_id: env.RAINDROP_CLIENT_ID,
         client_secret: env.RAINDROP_CLIENT_SECRET,
         code,
         redirect_uri: `${base}/auth/callback`,
         grant_type: 'authorization_code'
-      })
+      }).toString()
     });
     if (!tokenRes.ok) {
       const text = await tokenRes.text();
@@ -162,13 +162,13 @@ export default {
 
     const tokenRes = await fetch('https://raindrop.io/oauth/access_token', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
+      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+      body: new URLSearchParams({
         client_id: env.RAINDROP_CLIENT_ID,
         client_secret: env.RAINDROP_CLIENT_SECRET,
         refresh_token: body.refresh_token,
         grant_type: 'refresh_token'
-      })
+      }).toString()
     });
     if (!tokenRes.ok) {
       const text = await tokenRes.text();
