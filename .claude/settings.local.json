@@ -1,0 +1,21 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(wrangler whoami:*)",
+      "Bash(npm install:*)",
+      "Bash(wrangler auth:*)",
+      "Bash(wrangler login:*)",
+      "Bash(wrangler deployments:*)",
+      "Bash(wrangler secret:*)",
+      "Bash(curl:*)",
+      "Bash(wrangler tail:*)",
+      "Bash(wrangler deploy:*)",
+      "Bash(openssl rand:*)",
+      "Bash(git clone:*)",
+      "Bash(pnpm install:*)",
+      "Read(//DAIQUIRI-NAS/DEV/browser-apps/open-bookmark-sync/extension/**)"
+    ],
+    "deny": [],
+    "ask": []
+  }
+}

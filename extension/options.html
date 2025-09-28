@@ -684,6 +684,10 @@
                     <span>📧</span>
                     <span>Report Issues</span>
                 </a>
+                <a href="https://github.com/sponsors/daiquiri-98" class="header-link primary" target="_blank" rel="noopener noreferrer">
+                    <span>💖</span>
+                    <span>Sponsor</span>
+                </a>
                 <a id="bmcLink" class="bmc-link" href="https://buymeacoffee.com/daiquiri" target="_blank" rel="noopener noreferrer">
                     <span>☕</span>
                     <span>Buy me a coffee</span>
@@ -696,9 +700,10 @@
         <div class="main">
             <nav class="sidebar" aria-label="Sidebar Navigation">
                 <div class="sidebar-section">
-                    <div class="sidebar-title">Raindrop</div>
-                    <button class="side-link" data-tab="api">Connection</button>
+                    <div class="sidebar-title">Raindrop.io Sync</div>
+                    <button class="side-link" data-tab="api">Connect</button>
                     <button class="side-link" data-tab="sync">Sync</button>
+                    <button class="side-link" data-tab="guide">Guide</button>
                 </div>
                 <div class="sidebar-section">
                     <div class="sidebar-title">Maintenance</div>
@@ -763,7 +768,7 @@
             </div>
 
             <h2>Authentication</h2>
-            <div class="auth-status" id="authStatus">
+            <div id="authStatus" class="auth-status">
                 <div id="statusIndicator" class="status-indicator disconnected"></div>
                 <span id="authStatusText">Not authenticated</span>
                 <div id="statusDetails" class="status-details hidden"></div>
@@ -789,8 +794,7 @@
                     <span class="help-text">Use if Cloudflare authentication fails</span>
                 </div>
             </div>
-            <!-- Manual Configuration Section -->
-            <div style="margin-top: 16px; padding: 12px; border: 1px solid #e6e9ef; border-radius: 6px; background: #fafbfc;">
+            <div id="manualConfigSection" style="margin-top: 16px; padding: 12px; border: 1px solid #e6e9ef; border-radius: 6px; background: #fafbfc;">
                 <div style="display: flex; align-items: center; justify-content: space-between;">
                     <div>
                         <h3 style="margin: 0 0 4px 0; font-size: 14px;">Manual Configuration</h3>
@@ -800,9 +804,8 @@
                         Show
                     </button>
                 </div>
-            </div>
 
-            <div id="manualConfigSection" class="hidden" style="border: 1px solid #e8f0f8; background: #f9fbff; border-radius: 8px; padding: 16px; margin-top: 12px;">
+                <div id="manualConfigDetails" class="hidden" style="margin-top: 12px;">
                 <div class="form-group">
                     <label for="clientId">Client ID</label>
                     <div class="input-row">
@@ -833,9 +836,10 @@
                 <div style="margin-top: 16px;">
                     <button id="saveConfig" class="button">Save Configuration</button>
                 </div>
+                </div>
             </div>
 
-            <div class="section" style="margin-top:16px;">
+            <div id="debugSection" class="section" style="margin-top:16px;">
                 <h3>Debug</h3>
                 <div style="display:flex; gap:8px; flex-wrap:wrap;">
                     <button id="viewAuthState" class="button secondary" type="button">View Auth State</button>
@@ -852,7 +856,7 @@
             <div class="form-group">
                 <div class="checkbox-row">
                     <label class="checkbox-label">
-                        <input type="checkbox" id="syncEnabled" checked>
+                        <input type="checkbox" id="syncEnabled">
                         <strong>Enable Raindrop Sync</strong>
                     </label>
                 </div>
@@ -885,7 +889,7 @@
                     <option value="additions_only">Two-way: Additions only</option>
                     <option value="mirror">Two-way: Mirror (add/update/delete)</option>
                     <option value="upload_only">One-way: Browser → Raindrop (additions only)</option>
-                    <option value="off">One-way: Raindrop → Browser (rebuild)</option>
+                    <option value="off" selected>One-way: Raindrop → Browser (rebuild)</option>
                 </select>
                 <div class="help-text">Controls direction and level of reconciliation.</div>
             </div>
@@ -944,6 +948,51 @@
                 <button id="syncNow" class="button">Sync Now</button>
             </div>
             </div> <!-- end syncSettings container -->
+        </div>
+
+        <div class="section tab-panel" id="tab-guide" data-tab="guide">
+            <h2>Setup Guide</h2>
+            <p class="support-text">Step-by-step guide to set up and configure Raindrop.io synchronization.</p>
+
+            <div class="support-section">
+                <h3>🚀 Quick Setup</h3>
+                <ol style="margin: 16px 0; padding-left: 20px; line-height: 1.8;">
+                    <li><strong>Connect to Raindrop.io:</strong> Go to Connection tab and click "Authenticate with Raindrop"</li>
+                    <li><strong>Configure Sync:</strong> In the Sync tab, choose your sync mode and interval</li>
+                    <li><strong>Select Target:</strong> Choose which browser bookmarks folder to sync to</li>
+                    <li><strong>Choose Collections:</strong> Select which Raindrop collections to sync</li>
+                    <li><strong>Enable Sync:</strong> Check "Enable Raindrop Sync" to start automatic synchronization</li>
+                </ol>
+            </div>
+
+            <div class="support-section">
+                <h3>💡 Tips for Best Results</h3>
+                <ul style="margin: 16px 0; padding-left: 20px; line-height: 1.6;">
+                    <li>Start with "Additions only" sync mode for safety</li>
+                    <li>Use "Top-level only" collections setting initially</li>
+                    <li>Test with a longer sync interval (15-30 minutes) at first</li>
+                    <li>Export your bookmarks before making major changes</li>
+                    <li>Use the "Test Connection" button to verify your setup</li>
+                </ul>
+            </div>
+
+            <div class="support-section">
+                <h3>⚙️ Sync Modes Explained</h3>
+                <div style="margin: 16px 0;">
+                    <div style="margin-bottom: 12px;">
+                        <strong>Two-way: Additions only</strong> - Safest option. Only adds new bookmarks, never deletes.
+                    </div>
+                    <div style="margin-bottom: 12px;">
+                        <strong>Two-way: Mirror</strong> - Full synchronization including additions, updates, and deletions.
+                    </div>
+                    <div style="margin-bottom: 12px;">
+                        <strong>One-way: Browser → Raindrop</strong> - Uploads browser bookmarks to Raindrop only.
+                    </div>
+                    <div style="margin-bottom: 12px;">
+                        <strong>One-way: Raindrop → Browser</strong> - Downloads Raindrop bookmarks to browser only.
+                    </div>
+                </div>
+            </div>
         </div>
 
         <div class="section tab-panel" id="tab-import" data-tab="import">
@@ -1011,6 +1060,18 @@
                         <span>Report Issues</span>
                     </a>
                 </div>
+            </div>
+
+            <div class="support-section">
+                <h3>⭐ Support the Project</h3>
+                <div class="support-buttons">
+                    <iframe src="https://ghbtns.com/github-btn.html?user=daiquiri-98&repo=open-bookmark-sync&type=sponsor" frameborder="0" scrolling="0" width="140" height="25" title="GitHub Sponsor"></iframe>
+                    <a id="supportBmcLink" class="bmc-link" href="https://buymeacoffee.com/daiquiri" target="_blank" rel="noopener noreferrer">
+                        <span>☕</span>
+                        <span>Buy me a coffee</span>
+                    </a>
+                </div>
+                <div class="help-text" style="margin-top: 8px;">Support the development to help improve this extension!</div>
             </div>
         </div>
 

@@ -41,6 +41,7 @@ class OptionsManager {
       authenticateManual: document.getElementById('authenticateManual'),
       manualAuthSection: document.getElementById('manualAuthSection'),
       manualConfigSection: document.getElementById('manualConfigSection'),
+      manualConfigDetails: document.getElementById('manualConfigDetails'),
       toggleManualConfig: document.getElementById('toggleManualConfig'),
       closePrivacyNotice: document.getElementById('closePrivacyNotice'),
       privacyNotice: document.getElementById('privacyNotice'),
@@ -383,10 +384,10 @@ class OptionsManager {
   }
 
   toggleManualConfig() {
-    const isHidden = this.elements.manualConfigSection?.classList.contains('hidden');
+    const isHidden = this.elements.manualConfigDetails?.classList.contains('hidden');
 
-    if (this.elements.manualConfigSection) {
-      this.elements.manualConfigSection.classList.toggle('hidden');
+    if (this.elements.manualConfigDetails) {
+      this.elements.manualConfigDetails.classList.toggle('hidden');
     }
 
     if (this.elements.toggleManualConfig) {
