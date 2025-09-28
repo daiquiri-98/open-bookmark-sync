@@ -4610,7 +4610,10 @@ class OptionsManager {
   }
 
   async clearOldBackups() {
-    const confirmed = confirm('⚠️ CLEAR OLD BACKUPS\n\nThis will delete all stored local backups except the most recent one.\n\nThis action cannot be undone. Proceed?');
+    const confirmed = await this.confirmWithText('⚠️ CLEAR OLD BACKUPS\n\nThis will delete all stored local backups except the most recent one.\n\nThis action cannot be undone. Proceed?', {
+      confirmText: 'Clear',
+      confirmVariant: 'danger'
+    });
     if (!confirmed) return;
 
     try {
@@ -4825,7 +4828,10 @@ class OptionsManager {
       return;
     }
 
-    const confirmed = confirm('⚠️ AUTO-FIX ALL DUPLICATES\n\nThis will automatically remove all duplicate bookmarks and merge duplicate folders.\n\nA backup will be created automatically. Proceed?');
+    const confirmed = await this.confirmWithText('⚠️ AUTO-FIX ALL DUPLICATES\n\nThis will automatically remove all duplicate bookmarks and merge duplicate folders.\n\nA backup will be created automatically. Proceed?', {
+      confirmText: 'Clean Duplicates',
+      confirmVariant: 'danger'
+    });
     if (!confirmed) return;
 
     try {
@@ -4900,7 +4906,10 @@ class OptionsManager {
       return;
     }
 
-    const confirmed = confirm(`⚠️ REMOVE SELECTED DUPLICATES\n\nThis will remove ${checkboxes.length} selected duplicate items.\n\nThis action cannot be undone. Proceed?`);
+    const confirmed = await this.confirmWithText(`⚠️ REMOVE SELECTED DUPLICATES\n\nThis will remove ${checkboxes.length} selected duplicate items.\n\nThis action cannot be undone. Proceed?`, {
+      confirmText: 'Remove',
+      confirmVariant: 'danger'
+    });
     if (!confirmed) return;
 
     try {
@@ -5188,7 +5197,10 @@ class OptionsManager {
 
   async resetBackupRequirement() {
     // Debug function to reset backup requirement
-    const confirmed = confirm('⚠️ DEBUG: Reset backup requirement?\n\nThis will clear the backup requirement and enable all features without downloading.\n\nOnly use for testing!');
+    const confirmed = await this.confirmWithText('⚠️ DEBUG: Reset backup requirement?\n\nThis will clear the backup requirement and enable all features without downloading.\n\nOnly use for testing!', {
+      confirmText: 'Reset',
+      confirmVariant: 'danger'
+    });
     if (!confirmed) return;
 
     try {
