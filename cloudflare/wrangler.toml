@@ -1,4 +1,4 @@
-name = "open-bookmark-sync-proxy"
+name = "login-with-raindrop"
 main = "worker.js"
 compatibility_date = "2025-01-01"
 workers_dev = true
@@ -7,4 +7,3 @@ workers_dev = true
 # RAINDROP_CLIENT_ID
 # RAINDROP_CLIENT_SECRET
 # SESSION_SECRET
-
