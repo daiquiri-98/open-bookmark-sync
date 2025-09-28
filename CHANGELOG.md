@@ -1,5 +1,39 @@
 # Changelog
 
+## 1.2.0 - 2025-09-28
+
+### User Experience Enhancements
+- **Sync Default Mode**: Changed default sync mode to "One-way: Raindrop → Browser" for safer first-time setup
+- **Initial Setup**: "Enable Raindrop Sync" now starts disabled, requiring user to configure source and target first
+- **Navigation Improvements**: Renamed "Connection" to "Connect" for clearer user action
+- **Menu Structure**: Updated main menu from "Raindrop" to "Raindrop.io Sync" with new "Guide" submenu
+
+### New Guide System
+- **Setup Guide Tab**: Added comprehensive step-by-step setup instructions
+- **Sync Mode Explanations**: Detailed explanations of each sync mode with recommendations
+- **Best Practices**: Tips for optimal configuration and safe usage
+- **User Onboarding**: Improved first-time user experience with clear guidance
+
+### GitHub Integration & Support
+- **GitHub Sponsor Button**: Added sponsor button to header and support section
+- **Support Section**: Enhanced "Support the Project" section with GitHub sponsor and Buy me a coffee buttons
+- **Button Styling**: Improved button alignment and visual consistency
+- **Community Links**: Better integration with project repository and support channels
+
+### Technical Improvements
+- **Manual Configuration**: Merged and improved manual configuration section with better show/hide functionality
+- **Section Organization**: Added proper IDs and classes to all major sections for better structure
+- **UI Polish**: Refined button heights, spacing, and visual alignment throughout the interface
+- **Code Organization**: Improved JavaScript handling for configuration toggles
+
+### Turkish Summary (TR)
+- **Güvenli Başlangıç**: Varsayılan sync modu "Raindrop → Browser" oldu, sync başlangıçta kapalı
+- **Rehber Sistemi**: Kapsamlı kurulum rehberi ve sync modu açıklamaları eklendi
+- **GitHub Entegrasyonu**: Sponsor butonu ve gelişmiş destek bölümü
+- **Arayüz İyileştirmeleri**: Menü yapısı güncellendi, manuel yapılandırma birleştirildi
+
+---
+
 ## 1.1.0 - 2025-09-28
 
 ### Chrome Web Store Compliance

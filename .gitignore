@@ -33,3 +33,9 @@ auth guide/
 DEVELOPERS_GUIDE.md
 DEVELOPERS_LOG.md
 wordpress/bricks-product-page.html
+
+# Claude Code AI assistant files
+.claude
+
+# Distribution files (auto-generated)
+dist/
