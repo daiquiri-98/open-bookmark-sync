@@ -83,6 +83,17 @@
             box-sizing: border-box;
         }
 
+        /* Visually downgrade disabled controls */
+        input:disabled,
+        select:disabled,
+        .toggle-eye:disabled {
+            background-color: #f1f3f6 !important;
+            color: #8a8f98 !important;
+            border-color: #e6e9ef !important;
+            opacity: 0.55;
+            cursor: not-allowed;
+        }
+
         /* Unify number inputs look */
         input[type="number"] {
             width: 100%;
@@ -605,8 +616,8 @@
 
             <div class="form-group">
                 <label for="redirectUri">Redirect URI</label>
-                <input type="url" id="redirectUri" readonly class="pre-filled">
-                <div class="help-text">Local mode: register this in Raindrop. Managed mode: Worker callback is used.</div>
+                <input type="url" id="redirectUri" class="pre-filled" placeholder="Extension identity redirect (auto)">
+                <div class="help-text">Default is the extension identity URL (auto). You can override this for beta testing; ensure it matches what you registered in Raindrop.</div>
             </div>
 
             <button id="saveConfig" class="button">Save Configuration</button>

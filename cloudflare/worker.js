@@ -7,6 +7,19 @@ export default {
         return this._cors(new Response(null, { status: 204 }));
       }
 
+      if (url.pathname === '/health' && request.method === 'GET') {
+        return this._cors(new Response(JSON.stringify({ ok: true }), { status: 200, headers: { 'Content-Type': 'application/json' } }));
+      }
+      if (url.pathname === '/env-ok' && request.method === 'GET') {
+        const base = this._baseUrl(url);
+        return this._cors(new Response(JSON.stringify({
+          hasClientId: !!env.RAINDROP_CLIENT_ID,
+          hasClientSecret: !!env.RAINDROP_CLIENT_SECRET,
+          hasSessionSecret: !!env.SESSION_SECRET,
+          callback: base + '/auth/callback'
+        }), { status: 200, headers: { 'Content-Type': 'application/json' } }));
+      }
+
       if (url.pathname === '/auth/start' && request.method === 'GET') {
         return await this._authStart(url, env);
       }
@@ -30,6 +43,13 @@ export default {
     const extRedirect = url.searchParams.get('ext_redirect');
     if (!extRedirect) {
       return this._cors(new Response(JSON.stringify({ error: 'missing_param', param: 'ext_redirect' }), { status: 400, headers: { 'Content-Type': 'application/json' } }));
+    }
+    if (!env.RAINDROP_CLIENT_ID || !env.RAINDROP_CLIENT_SECRET) {
+      return this._cors(new Response(JSON.stringify({ error: 'missing_env', details: {
+        RAINDROP_CLIENT_ID: !!env.RAINDROP_CLIENT_ID,
+        RAINDROP_CLIENT_SECRET: !!env.RAINDROP_CLIENT_SECRET,
+        SESSION_SECRET: !!env.SESSION_SECRET
+      }}), { status: 500, headers: { 'Content-Type': 'application/json' } }));
     }
 
     const base = this._baseUrl(url);
@@ -186,4 +206,3 @@ export default {
     return this._b64urlEncode(bin);
   }
 };
-

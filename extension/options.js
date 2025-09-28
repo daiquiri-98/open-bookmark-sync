@@ -136,7 +136,7 @@ class OptionsManager {
   async loadSettings() {
     try {
       const config = await chrome.storage.sync.get([
-        'clientId','clientSecret','managedOAuth','managedOAuthBaseUrl','lastSyncTime','syncIntervalMinutes','targetFolderId',
+        'clientId','clientSecret','managedOAuth','managedOAuthBaseUrl','redirectUri','lastSyncTime','syncIntervalMinutes','targetFolderId',
         'collectionsSort','bookmarksSort','rateLimitRpm','twoWayMode',
         'selectedCollectionIds','syncEnabled','topLevelOnly'
       ]);
@@ -147,7 +147,7 @@ class OptionsManager {
       // Force managed OAuth off in UI for now
       if (E.managedOAuth) {
         E.managedOAuth.disabled = false;
-        E.managedOAuth.checked = (config.managedOAuth ?? true);
+        E.managedOAuth.checked = (config.managedOAuth ?? false);
       }
       if (E.managedOAuthBaseUrl) {
         E.managedOAuthBaseUrl.disabled = false;
@@ -155,9 +155,12 @@ class OptionsManager {
       }
       this.updateManagedUi();
 
-      if (chrome.identity && chrome.identity.getRedirectURL) {
-        const redirectUri = chrome.identity.getRedirectURL();
-        E.redirectUri && (E.redirectUri.value = redirectUri);
+      if (E.redirectUri) {
+        if (config.redirectUri) {
+          E.redirectUri.value = config.redirectUri;
+        } else if (chrome.identity && chrome.identity.getRedirectURL) {
+          E.redirectUri.value = chrome.identity.getRedirectURL();
+        }
       }
 
       if (config.lastSyncTime && E.lastSyncTime) {
@@ -1175,6 +1178,10 @@ class OptionsManager {
 
       let clientId = this.elements.clientId?.value.trim() || '';
       let clientSecret = this.elements.clientSecret?.value.trim() || '';
+      let redirectUri = (this.elements.redirectUri?.value.trim()) || '';
+      if (!redirectUri && chrome.identity && chrome.identity.getRedirectURL) {
+        redirectUri = chrome.identity.getRedirectURL();
+      }
       if (!managedOAuth) {
         if (!clientId) return this.showMessage('Client ID is required', 'error');
         if (!clientSecret) return this.showMessage('Client Secret is required', 'error');
@@ -1184,7 +1191,7 @@ class OptionsManager {
         clientSecret = clientSecret; // optional
       }
 
-      await chrome.storage.sync.set({ clientId, clientSecret, managedOAuth, managedOAuthBaseUrl });
+      await chrome.storage.sync.set({ clientId, clientSecret, managedOAuth, managedOAuthBaseUrl, redirectUri });
       this.showMessage('Configuration saved successfully', 'success');
     } catch (_) { this.showMessage('Failed to save configuration', 'error'); }
   }

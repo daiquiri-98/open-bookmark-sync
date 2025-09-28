@@ -11,7 +11,7 @@ class RaindropOAuth {
 
   async startAuthFlow() {
     try {
-      const config = await chrome.storage.sync.get(['clientId','managedOAuth','managedOAuthBaseUrl']);
+      const config = await chrome.storage.sync.get(['clientId','managedOAuth','managedOAuthBaseUrl','redirectUri']);
 
       // Managed mode via Cloudflare Worker
       if (config.managedOAuth && this.MANAGED_ENABLED) {
@@ -24,7 +24,7 @@ class RaindropOAuth {
       }
 
       // Use chrome.identity.getRedirectURL() to get the proper redirect URI
-      const redirectUri = chrome.identity.getRedirectURL();
+      const redirectUri = config.redirectUri || chrome.identity.getRedirectURL();
       console.log('Using redirect URI:', redirectUri);
 
       // Generate state parameter for security
@@ -84,7 +84,8 @@ class RaindropOAuth {
 
   async startManagedAuthFlow(baseUrl) {
     // Start OAuth via Cloudflare Worker proxy
-    const redirectUri = chrome.identity.getRedirectURL();
+    const { redirectUri: stored } = await chrome.storage.sync.get(['redirectUri']);
+    const redirectUri = stored || chrome.identity.getRedirectURL();
     const startUrl = new URL(baseUrl.replace(/\/$/, '') + '/auth/start');
     startUrl.searchParams.set('ext_redirect', redirectUri);
 
