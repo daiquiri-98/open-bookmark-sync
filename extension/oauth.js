@@ -7,14 +7,23 @@ class RaindropOAuth {
     this.API_BASE = 'https://api.raindrop.io/rest/v1';
     this.DEFAULT_MANAGED_BASE = 'https://rdoauth.daiquiri.dev';
     this.MANAGED_ENABLED = true;
+    this.MANAGED_OAUTH_ENABLED = true; // Add missing constant
   }
 
   async startAuthFlow() {
     try {
+      console.log('🔐 Starting OAuth authentication flow...');
       const config = await chrome.storage.sync.get(['clientId','managedOAuth','managedOAuthBaseUrl','redirectUri']);
+      console.log('🔐 Auth config loaded:', {
+        hasManagedOAuth: !!config.managedOAuth,
+        hasClientId: !!config.clientId,
+        hasBaseUrl: !!config.managedOAuthBaseUrl,
+        hasRedirectUri: !!config.redirectUri
+      });
 
       // Managed mode via Cloudflare Worker
-      if (config.managedOAuth && this.MANAGED_ENABLED) {
+      if (config.managedOAuth && this.MANAGED_OAUTH_ENABLED) {
+        console.log('🔐 Using managed OAuth flow');
         return await this.startManagedAuthFlow(config.managedOAuthBaseUrl || this.DEFAULT_MANAGED_BASE);
       }
 
@@ -83,14 +92,21 @@ class RaindropOAuth {
   }
 
   async startManagedAuthFlow(baseUrl) {
+    console.log('🔐 Starting managed OAuth flow with base URL:', baseUrl);
+
     // Start OAuth via Cloudflare Worker proxy
     const { redirectUri: stored } = await chrome.storage.sync.get(['redirectUri']);
     const redirectUri = stored || chrome.identity.getRedirectURL();
     const startUrl = new URL(baseUrl.replace(/\/$/, '') + '/auth/start');
     startUrl.searchParams.set('ext_redirect', redirectUri);
 
-    console.log('Managed OAuth: Starting auth with URL:', startUrl.toString());
-    console.log('Managed OAuth: Extension redirect URI:', redirectUri);
+    console.log('🔐 Managed OAuth: Starting auth with URL:', startUrl.toString());
+    console.log('🔐 Managed OAuth: Extension redirect URI:', redirectUri);
+
+    // Verify extension identity URL format
+    if (!redirectUri.includes('chrome-extension://')) {
+      console.warn('⚠️ Redirect URI may be invalid:', redirectUri);
+    }
 
     const redirectUrl = await chrome.identity.launchWebAuthFlow({
       url: startUrl.toString(),
@@ -222,7 +238,7 @@ class RaindropOAuth {
 
       // Managed mode: refresh via Worker
       let response;
-      if (config.managedOAuth && this.MANAGED_ENABLED) {
+      if (config.managedOAuth && this.MANAGED_OAUTH_ENABLED) {
         const base = (config.managedOAuthBaseUrl || this.DEFAULT_MANAGED_BASE).replace(/\/$/, '');
         response = await fetch(base + '/token/refresh', {
           method: 'POST',

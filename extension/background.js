@@ -12,6 +12,7 @@ class RaindropSync {
     this.RATE_LIMIT_RPM_DEFAULT = 60; // conservative default; backoff handles 429s
     this._lastRequestAt = 0;
     this._syncInProgress = false; // Add sync mutex
+    this.MANAGED_OAUTH_ENABLED = true; // Add missing constant
   }
 
   async initialize() {
@@ -79,20 +80,28 @@ class RaindropSync {
       let collections = await this.fetchCollections();
 
       // Filter collections per user settings
-      const { topLevelOnly = true, selectedCollectionIds = [] } = await chrome.storage.sync.get(['topLevelOnly','selectedCollectionIds']);
+      const { topLevelOnly = true, selectedCollectionIds = [], collectionImportMode = 'topLevel' } = await chrome.storage.sync.get(['topLevelOnly','selectedCollectionIds','collectionImportMode']);
       collections = (collections || []).filter(c => c && c._id >= 0);
 
-      if (topLevelOnly) {
+      // Use new collection import mode system
+      const mode = collectionImportMode || (topLevelOnly ? 'topLevel' : 'custom');
+
+      if (mode === 'topLevel') {
         // Top-level only mode: import only parent collections
         collections = collections.filter(c => !this.hasParent(c));
-      } else if (Array.isArray(selectedCollectionIds) && selectedCollectionIds.length > 0) {
+        console.log(`Filtered to ${collections.length} top-level collections`);
+      } else if (mode === 'custom' && Array.isArray(selectedCollectionIds) && selectedCollectionIds.length > 0) {
         // Manual selection mode: import only selected collections
         const idSet = new Set(selectedCollectionIds.map(String));
         collections = collections.filter(c => idSet.has(String(c._id)));
+        console.log(`Filtered to ${collections.length} manually selected collections`);
+      } else if (mode === 'all') {
+        // Import all collections including sub-collections
+        console.log(`Importing all ${collections.length} collections (including sub-collections)`);
       } else {
-        // If top-level only is OFF but no collections selected, import all
-        // This shouldn't happen in normal usage but provides fallback
-        console.log('No collections selected but top-level only is disabled. Importing all.');
+        // Fallback: if custom mode but no selections, use top-level only
+        collections = collections.filter(c => !this.hasParent(c));
+        console.log(`Fallback: No collections selected in custom mode, using ${collections.length} top-level collections`);
       }
 
       // Apply collections sort preference (for create-order and optional reorder)
@@ -161,7 +170,7 @@ class RaindropSync {
     if (config.refreshToken) {
       try {
         let refreshResponse;
-        if ((config.managedOAuth && MANAGED_OAUTH_ENABLED) || (!config.clientSecret && config.managedOAuthBaseUrl)) {
+        if ((config.managedOAuth && this.MANAGED_OAUTH_ENABLED) || (!config.clientSecret && config.managedOAuthBaseUrl)) {
           const base = (config.managedOAuthBaseUrl || 'https://rdoauth.daiquiri.dev').replace(/\/$/, '');
           refreshResponse = await this.apiFetch(base + '/token/refresh', {
             method: 'POST',
