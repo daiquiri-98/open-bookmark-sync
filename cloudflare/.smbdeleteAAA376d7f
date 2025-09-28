@@ -1,0 +1,13 @@
+name = "login-with-raindrop"
+main = "worker.js"
+compatibility_date = "2025-01-01"
+workers_dev = true
+
+[vars]
+# Non-secret debug flag to verify bindings are passed in Git deploys.
+X_CHECK = "1"
+
+# Add these as plain-text variables in the Cloudflare dashboard or via `wrangler secret put`
+# RAINDROP_CLIENT_ID
+# RAINDROP_CLIENT_SECRET
+# SESSION_SECRET
