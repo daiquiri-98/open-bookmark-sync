@@ -24,7 +24,12 @@ export default {
       if (url.pathname === '/env-keys' && request.method === 'GET') {
         // Debug endpoint: show which env keys are visible (no values)
         const keys = Object.keys(env || {}).filter(k => !k.toLowerCase().includes('secret'));
-        return this._cors(new Response(JSON.stringify({ keys }), { status: 200, headers: { 'Content-Type': 'application/json' } }));
+        const globals = {
+          hasGlobalClientId: this._hasGlobal('RAINDROP_CLIENT_ID'),
+          hasGlobalClientSecret: this._hasGlobal('RAINDROP_CLIENT_SECRET'),
+          hasGlobalSessionSecret: this._hasGlobal('SESSION_SECRET')
+        };
+        return this._cors(new Response(JSON.stringify({ keys, ...globals }), { status: 200, headers: { 'Content-Type': 'application/json' } }));
       }
 
       if (url.pathname === '/auth/start' && request.method === 'GET') {
@@ -189,6 +194,15 @@ export default {
       if (typeof SESSION_SECRET !== 'undefined' && !env.SESSION_SECRET) env.SESSION_SECRET = SESSION_SECRET;
     } catch (_) {}
     return env || {};
+  },
+
+  _hasGlobal(name) {
+    try {
+      // eslint-disable-next-line no-new-func
+      return new Function(`return typeof ${name} !== 'undefined'`)();
+    } catch (_) {
+      return false;
+    }
   },
 
   _baseUrl(url) {
