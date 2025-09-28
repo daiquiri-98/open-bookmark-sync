@@ -26,11 +26,6 @@
 - **UI Polish**: Refined button heights, spacing, and visual alignment throughout the interface
 - **Code Organization**: Improved JavaScript handling for configuration toggles
 
-### Turkish Summary (TR)
-- **Güvenli Başlangıç**: Varsayılan sync modu "Raindrop → Browser" oldu, sync başlangıçta kapalı
-- **Rehber Sistemi**: Kapsamlı kurulum rehberi ve sync modu açıklamaları eklendi
-- **GitHub Entegrasyonu**: Sponsor butonu ve gelişmiş destek bölümü
-- **Arayüz İyileştirmeleri**: Menü yapısı güncellendi, manuel yapılandırma birleştirildi
 
 ---
 
@@ -59,11 +54,6 @@
 - **Automatic Worker Health**: Background checking without manual intervention
 - **Code Cleanup**: Removed redundant spacing and streamlined layout
 
-### Turkish Summary (TR)
-- **Chrome Web Store Uyumluluğu**: Kapsamlı privacy policy ve compliance
-- **Arayüz İyileştirmeleri**: Birleşik auth durumu, yeniden tasarlanmış manuel yapılandırma
-- **Görsel Düzenlemeler**: Daha temiz layout, gizlenebilir privacy bildirimi
-- **GitHub Entegrasyonu**: Destek bölümlerine repository linkleri eklendi
 
 ---
 
@@ -76,14 +66,6 @@
 - Flicker removed on load; initial layout renders in final state
 - Guide merged into “Guide & Help” panel; Buy Me a Coffee highlighted (yellow button)
 
-TR:
-- Yeni varsayılan yan menü: sabit header ve sidebar; içerik akıcı kayıyor
-- Navigasyon yeniden düzenlendi: Raindrop (Connection + Sync), Maintenance (Import/Export + Danger Zone), Resources (Guide & Help, Buy Me a Coffee)
-- Tasarım yumuşatmaları: tipografi ölçeği, daha yumuşak kenarlıklar, iyileştirilmiş boşluklar, pasif durumlar daha soluk
-- Sync açıkken Clear All için uyarı: otomatik geri yükleme sürprizini önleme
-- Placeholder renkleri okunabilirlik için ayarlandı
-- Yüklemede flicker kaldırıldı; ilk render son hal
-- Guide, “Guide & Help” paneline taşındı; Buy Me a Coffee sarı butonla vurgulandı
 
 ## 0.3.0 - 2025-09-27
 - Move extension code into extension/ folder; keep README at root
