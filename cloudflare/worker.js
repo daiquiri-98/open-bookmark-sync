@@ -19,6 +19,11 @@ export default {
           callback: base + '/auth/callback'
         }), { status: 200, headers: { 'Content-Type': 'application/json' } }));
       }
+      if (url.pathname === '/env-keys' && request.method === 'GET') {
+        // Debug endpoint: show which env keys are visible (no values)
+        const keys = Object.keys(env || {}).filter(k => !k.toLowerCase().includes('secret'));
+        return this._cors(new Response(JSON.stringify({ keys }), { status: 200, headers: { 'Content-Type': 'application/json' } }));
+      }
 
       if (url.pathname === '/auth/start' && request.method === 'GET') {
         return await this._authStart(url, env);
@@ -45,6 +50,11 @@ export default {
       return this._cors(new Response(JSON.stringify({ error: 'missing_param', param: 'ext_redirect' }), { status: 400, headers: { 'Content-Type': 'application/json' } }));
     }
     if (!env.RAINDROP_CLIENT_ID || !env.RAINDROP_CLIENT_SECRET) {
+      console.log('Missing env vars', {
+        hasClientId: !!env.RAINDROP_CLIENT_ID,
+        hasClientSecret: !!env.RAINDROP_CLIENT_SECRET,
+        hasSessionSecret: !!env.SESSION_SECRET
+      });
       return this._cors(new Response(JSON.stringify({ error: 'missing_env', details: {
         RAINDROP_CLIENT_ID: !!env.RAINDROP_CLIENT_ID,
         RAINDROP_CLIENT_SECRET: !!env.RAINDROP_CLIENT_SECRET,
