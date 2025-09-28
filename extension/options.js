@@ -4587,7 +4587,10 @@ class OptionsManager {
   }
 
   async deleteLocalBackup(backupKey) {
-    const confirmed = confirm('⚠️ DELETE BACKUP\n\nThis will permanently delete the selected backup from local storage.\n\nThis action cannot be undone. Proceed?');
+    const confirmed = await this.confirmWithText('⚠️ DELETE BACKUP\n\nThis will permanently delete the selected backup from local storage.\n\nThis action cannot be undone. Proceed?', {
+      confirmText: 'Delete',
+      confirmVariant: 'danger'
+    });
     if (!confirmed) return;
 
     try {
