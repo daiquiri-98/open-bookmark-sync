@@ -144,7 +144,13 @@ class OptionsManager {
       duplicateStatusText: document.getElementById('duplicateStatusText'),
       includeSubfolders: document.getElementById('includeSubfolders'),
       exactTitleMatch: document.getElementById('exactTitleMatch'),
-      createBackupBeforeRemoval: document.getElementById('createBackupBeforeRemoval')
+      createBackupBeforeRemoval: document.getElementById('createBackupBeforeRemoval'),
+      confirmationModal: document.getElementById('confirmationModal'),
+      confirmationTitle: document.getElementById('confirmationTitle'),
+      confirmationMessage: document.getElementById('confirmationMessage'),
+      confirmationConfirm: document.getElementById('confirmationConfirm'),
+      confirmationCancel: document.getElementById('confirmationCancel'),
+      confirmationClose: document.getElementById('confirmationClose')
     };
   }
 
@@ -1747,6 +1753,103 @@ class OptionsManager {
     return null;
   }
 
+  applyButtonVariant(button, variant = 'primary') {
+    if (!button) return;
+    const allowed = new Set(['primary', 'secondary', 'danger']);
+    const resolved = allowed.has(variant) ? variant : 'primary';
+    button.className = `button ${resolved}`;
+  }
+
+  async showConfirmation({
+    title = 'Please Confirm',
+    message = '',
+    confirmText = 'Confirm',
+    cancelText = 'Cancel',
+    confirmVariant = 'primary',
+    cancelVariant = 'secondary'
+  } = {}) {
+    const modal = this.elements.confirmationModal;
+    const titleEl = this.elements.confirmationTitle;
+    const messageEl = this.elements.confirmationMessage;
+    const confirmBtn = this.elements.confirmationConfirm;
+    const cancelBtn = this.elements.confirmationCancel;
+    const closeBtn = this.elements.confirmationClose;
+
+    if (!modal || !titleEl || !messageEl || !confirmBtn || !cancelBtn) {
+      const fallbackText = [title, message].filter(Boolean).join('\n\n');
+      return window.confirm(fallbackText || 'Are you sure?');
+    }
+
+    titleEl.textContent = title;
+    const formattedMessage = (message || '').replace(/\n/g, '<br>');
+    messageEl.innerHTML = formattedMessage || '';
+
+    confirmBtn.textContent = confirmText;
+    cancelBtn.textContent = cancelText;
+    this.applyButtonVariant(confirmBtn, confirmVariant);
+    this.applyButtonVariant(cancelBtn, cancelVariant);
+
+    const backdrop = modal.querySelector('.inline-modal-backdrop');
+
+    modal.classList.remove('hidden');
+    modal.classList.add('visible');
+    document.body?.classList.add('modal-open');
+
+    return new Promise((resolve) => {
+      let settled = false;
+
+      const cleanup = () => {
+        modal.classList.remove('visible');
+        modal.classList.add('hidden');
+        document.body?.classList.remove('modal-open');
+        confirmBtn.removeEventListener('click', onConfirm);
+        cancelBtn.removeEventListener('click', onCancel);
+        closeBtn?.removeEventListener('click', onCancel);
+        backdrop?.removeEventListener('click', onCancel);
+        document.removeEventListener('keydown', onKeyDown);
+      };
+
+      const settle = (value) => {
+        if (settled) return;
+        settled = true;
+        cleanup();
+        resolve(value);
+      };
+
+      const onConfirm = () => settle(true);
+      const onCancel = () => settle(false);
+      const onKeyDown = (event) => {
+        if (event.key === 'Escape') {
+          settle(false);
+        }
+      };
+
+      confirmBtn.addEventListener('click', onConfirm);
+      cancelBtn.addEventListener('click', onCancel);
+      closeBtn?.addEventListener('click', onCancel);
+      backdrop?.addEventListener('click', onCancel);
+      document.addEventListener('keydown', onKeyDown);
+
+      setTimeout(() => { try { confirmBtn.focus(); } catch (_) {} }, 0);
+    });
+  }
+
+  async confirmWithText(rawText, options = {}) {
+    const text = typeof rawText === 'string' ? rawText : '';
+    const segments = text.split(/\n{2,}/);
+    const segmentTitle = segments.shift()?.trim();
+    const segmentMessage = segments.join('\n\n').trim();
+
+    const title = options.title || segmentTitle || 'Please Confirm';
+    const message = options.message !== undefined ? options.message : segmentMessage;
+
+    return this.showConfirmation({
+      ...options,
+      title,
+      message
+    });
+  }
+
   async restoreBackup(timestamp) {
     try {
       const backupKey = this.getAutoBackupKey(timestamp);
@@ -1759,7 +1862,10 @@ class OptionsManager {
 
       const backupDate = this.getBackupDate(timestamp);
       const dateLabel = backupDate ? backupDate.toLocaleString() : 'the selected backup';
-      const confirmed = confirm(`⚠️ RESTORE BACKUP CONFIRMATION\n\nThis will:\n• Delete ALL current bookmarks\n• Restore bookmarks from ${dateLabel}\n\nThis action cannot be undone. Continue?`);
+      const confirmed = await this.confirmWithText(`⚠️ RESTORE BACKUP CONFIRMATION\n\nThis will:\n• Delete ALL current bookmarks\n• Restore bookmarks from ${dateLabel}\n\nThis action cannot be undone. Continue?`, {
+        confirmText: 'Restore',
+        confirmVariant: 'danger'
+      });
       if (!confirmed) return;
 
       // Clear current bookmarks
@@ -1777,7 +1883,10 @@ class OptionsManager {
 
   async restoreBackup(timestamp) {
     try {
-      const confirmed = confirm('⚠️ RESTORE FROM AUTO BACKUP\n\nThis will restore bookmarks from the selected automatic backup. Current bookmarks will be merged with backup contents.\n\nProceed with restore?');
+      const confirmed = await this.confirmWithText('⚠️ RESTORE FROM AUTO BACKUP\n\nThis will restore bookmarks from the selected automatic backup. Current bookmarks will be merged with backup contents.\n\nProceed with restore?', {
+        confirmText: 'Restore',
+        confirmVariant: 'primary'
+      });
       if (!confirmed) return;
 
       const backupKey = this.getAutoBackupKey(timestamp);
@@ -1830,7 +1939,10 @@ class OptionsManager {
 
   async deleteAutoBackup(timestamp) {
     try {
-      const confirmed = confirm('🗑️ DELETE AUTO BACKUP\n\nThis will permanently delete the selected backup and remove it from the list.\n\nContinue?');
+      const confirmed = await this.confirmWithText('🗑️ DELETE AUTO BACKUP\n\nThis will permanently delete the selected backup and remove it from the list.\n\nContinue?', {
+        confirmText: 'Delete',
+        confirmVariant: 'danger'
+      });
       if (!confirmed) return;
 
       const backupKey = this.getAutoBackupKey(timestamp);
@@ -1853,7 +1965,10 @@ class OptionsManager {
 
   async clearOldAutoBackups() {
     try {
-      const confirmed = confirm('⚠️ CLEAR OLD BACKUPS\n\nThis will remove all automatic backups except the most recent 3.\n\nContinue?');
+      const confirmed = await this.confirmWithText('⚠️ CLEAR OLD BACKUPS\n\nThis will remove all automatic backups except the most recent 3.\n\nContinue?', {
+        confirmText: 'Clear',
+        confirmVariant: 'danger'
+      });
       if (!confirmed) return;
 
       const { backupKeys = [] } = await chrome.storage.sync.get(['backupKeys']);
@@ -1901,7 +2016,10 @@ class OptionsManager {
       }
 
       // Confirm before restore
-      const confirmed = confirm('⚠️ RESTORE FROM AUTO BACKUP\n\nThis will restore bookmarks from the latest automatic backup. Current bookmarks will be merged with backup contents.\n\nProceed with restore?');
+      const confirmed = await this.confirmWithText('⚠️ RESTORE FROM AUTO BACKUP\n\nThis will restore bookmarks from the latest automatic backup. Current bookmarks will be merged with backup contents.\n\nProceed with restore?', {
+        confirmText: 'Restore',
+        confirmVariant: 'primary'
+      });
       if (!confirmed) return;
 
       // Restore using the backup data
@@ -2014,7 +2132,10 @@ class OptionsManager {
 
   async executeManualMerge() {
     try {
-      const confirmed = confirm('⚠️ MANUAL MERGE CONFIRMATION\n\nThis will merge selected duplicates according to your choices.\n\nA backup will be created automatically. Continue?');
+      const confirmed = await this.confirmWithText('⚠️ MANUAL MERGE CONFIRMATION\n\nThis will merge selected duplicates according to your choices.\n\nA backup will be created automatically. Continue?', {
+        confirmText: 'Merge',
+        confirmVariant: 'danger'
+      });
       if (!confirmed) return;
 
       // Create backup first
@@ -2113,7 +2234,10 @@ class OptionsManager {
 
   async cleanUrlParameters() {
     try {
-      const confirmed = confirm('🧹 CLEAN URL PARAMETERS\n\nThis will remove tracking parameters (UTM, fbclid, etc.) from all bookmark URLs.\n\nExample:\n"site.com/page?utm_source=google&fbclid=123"\n→ "site.com/page"\n\nA backup will be created automatically. Continue?');
+      const confirmed = await this.confirmWithText('🧹 CLEAN URL PARAMETERS\n\nThis will remove tracking parameters (UTM, fbclid, etc.) from all bookmark URLs.\n\nExample:\n"site.com/page?utm_source=google&fbclid=123"\n→ "site.com/page"\n\nA backup will be created automatically. Continue?', {
+        confirmText: 'Clean URLs',
+        confirmVariant: 'danger'
+      });
       if (!confirmed) return;
 
       // Create backup first
@@ -2358,7 +2482,10 @@ class OptionsManager {
 
   async cleanEmptyFolders() {
     try {
-      const confirmed = confirm('🗂️ CLEAN EMPTY FOLDERS\n\nThis will remove all empty bookmark folders from your browser.\n\nEmpty folders are folders that contain no bookmarks or other folders.\n\nA backup will be created automatically. Continue?');
+      const confirmed = await this.confirmWithText('🗂️ CLEAN EMPTY FOLDERS\n\nThis will remove all empty bookmark folders from your browser.\n\nEmpty folders are folders that contain no bookmarks or other folders.\n\nA backup will be created automatically. Continue?', {
+        confirmText: 'Remove Folders',
+        confirmVariant: 'danger'
+      });
       if (!confirmed) return;
 
       // Create backup first
@@ -2564,7 +2691,10 @@ class OptionsManager {
     const file = event.target.files[0];
     if (!file) return;
 
-    const confirmed = confirm('⚠️ RESTORE WARNING\n\nThis will restore bookmarks from the backup file. Current bookmarks will be merged with backup contents.\n\nProceed with restore?');
+    const confirmed = await this.confirmWithText('⚠️ RESTORE WARNING\n\nThis will restore bookmarks from the backup file. Current bookmarks will be merged with backup contents.\n\nProceed with restore?', {
+      confirmText: 'Restore',
+      confirmVariant: 'danger'
+    });
     if (!confirmed) {
       event.target.value = ''; // Clear file selection
       return;
@@ -2599,7 +2729,10 @@ class OptionsManager {
   }
 
   async emergencyRestore() {
-    const confirmed = confirm('🚨 EMERGENCY RESTORE WARNING\n\nThis will DELETE ALL current bookmarks and restore from a backup file.\n\nThis is a destructive operation that cannot be undone.\n\nOnly proceed if your current bookmarks are corrupted.\n\nClick OK to select backup file.');
+    const confirmed = await this.confirmWithText('🚨 EMERGENCY RESTORE WARNING\n\nThis will DELETE ALL current bookmarks and restore from a backup file.\n\nThis is a destructive operation that cannot be undone.\n\nOnly proceed if your current bookmarks are corrupted.\n\nClick OK to select backup file.', {
+      confirmText: 'Select Backup',
+      confirmVariant: 'danger'
+    });
     if (!confirmed) return;
 
     // Trigger file selection
@@ -2610,7 +2743,10 @@ class OptionsManager {
       const file = e.target.files[0];
       if (!file) return;
 
-      const finalConfirm = confirm('FINAL WARNING: All current bookmarks will be deleted and replaced with backup contents.\n\nThis action cannot be undone!\n\nProceed?');
+      const finalConfirm = await this.confirmWithText('FINAL WARNING: All current bookmarks will be deleted and replaced with backup contents.\n\nThis action cannot be undone!\n\nProceed?', {
+        confirmText: 'Restore',
+        confirmVariant: 'danger'
+      });
       if (!finalConfirm) return;
 
       try {
@@ -2935,7 +3071,10 @@ class OptionsManager {
       return;
     }
 
-    const confirmed = confirm('⚠️ AUTO CLEANUP CONFIRMATION\n\nThis will automatically clean all found duplicates:\n\n• Remove duplicate bookmarks (keep first occurrence)\n• Merge duplicate folders (merge into first folder)\n\nProceed with auto cleanup?');
+    const confirmed = await this.confirmWithText('⚠️ AUTO CLEANUP CONFIRMATION\n\nThis will automatically clean all found duplicates:\n\n• Remove duplicate bookmarks (keep first occurrence)\n• Merge duplicate folders (merge into first folder)\n\nProceed with auto cleanup?', {
+      confirmText: 'Clean Duplicates',
+      confirmVariant: 'danger'
+    });
     if (!confirmed) return;
 
     try {
@@ -3128,7 +3267,10 @@ class OptionsManager {
   }
 
   async cleanupDuplicatesWithBackup() {
-    const confirmed = confirm('⚠️ BACKUP REQUIRED\n\nThis operation will remove duplicate bookmarks permanently. A backup is required before proceeding.\n\nClick OK to download backup first, then proceed with cleanup.');
+    const confirmed = await this.confirmWithText('⚠️ BACKUP REQUIRED\n\nThis operation will remove duplicate bookmarks permanently. A backup is required before proceeding.\n\nClick OK to download backup first, then proceed with cleanup.', {
+      confirmText: 'Download Backup',
+      confirmVariant: 'primary'
+    });
     if (!confirmed) return;
 
     try {
@@ -3139,7 +3281,10 @@ class OptionsManager {
       await new Promise(resolve => setTimeout(resolve, 1000));
 
       // Confirm again after backup
-      const proceedConfirmed = confirm('Backup downloaded. Proceed with removing duplicate bookmarks?\n\nThis action cannot be undone.');
+      const proceedConfirmed = await this.confirmWithText('Backup downloaded. Proceed with removing duplicate bookmarks?\n\nThis action cannot be undone.', {
+        confirmText: 'Remove Duplicates',
+        confirmVariant: 'danger'
+      });
       if (!proceedConfirmed) return;
 
       await this.cleanupDuplicates();
@@ -3149,7 +3294,10 @@ class OptionsManager {
   }
 
   async mergeDuplicateFoldersWithBackup() {
-    const confirmed = confirm('⚠️ BACKUP REQUIRED\n\nThis operation will merge folders with identical names and remove duplicates permanently. A backup is required before proceeding.\n\nClick OK to download backup first, then proceed with folder merge.');
+    const confirmed = await this.confirmWithText('⚠️ BACKUP REQUIRED\n\nThis operation will merge folders with identical names and remove duplicates permanently. A backup is required before proceeding.\n\nClick OK to download backup first, then proceed with folder merge.', {
+      confirmText: 'Download Backup',
+      confirmVariant: 'primary'
+    });
     if (!confirmed) return;
 
     try {
@@ -3160,7 +3308,10 @@ class OptionsManager {
       await new Promise(resolve => setTimeout(resolve, 1000));
 
       // Confirm again after backup
-      const proceedConfirmed = confirm('Backup downloaded. Proceed with merging duplicate folders?\n\nThis action cannot be undone.');
+      const proceedConfirmed = await this.confirmWithText('Backup downloaded. Proceed with merging duplicate folders?\n\nThis action cannot be undone.', {
+        confirmText: 'Merge Folders',
+        confirmVariant: 'danger'
+      });
       if (!proceedConfirmed) return;
 
       await this.mergeDuplicateFolders();
@@ -3234,7 +3385,10 @@ class OptionsManager {
   }
 
   async cleanupAndMergeWithBackup() {
-    const confirmed = confirm('⚠️ BACKUP REQUIRED\n\nThis operation will remove duplicate bookmarks AND merge duplicate folders permanently. A backup is required before proceeding.\n\nClick OK to download backup first, then proceed with complete cleanup.');
+    const confirmed = await this.confirmWithText('⚠️ BACKUP REQUIRED\n\nThis operation will remove duplicate bookmarks AND merge duplicate folders permanently. A backup is required before proceeding.\n\nClick OK to download backup first, then proceed with complete cleanup.', {
+      confirmText: 'Download Backup',
+      confirmVariant: 'primary'
+    });
     if (!confirmed) return;
 
     try {
@@ -3245,7 +3399,10 @@ class OptionsManager {
       await new Promise(resolve => setTimeout(resolve, 1000));
 
       // Confirm again after backup
-      const proceedConfirmed = confirm('Backup downloaded. Proceed with complete cleanup (remove duplicates + merge folders)?\n\nThis action cannot be undone.');
+      const proceedConfirmed = await this.confirmWithText('Backup downloaded. Proceed with complete cleanup (remove duplicates + merge folders)?\n\nThis action cannot be undone.', {
+        confirmText: 'Run Cleanup',
+        confirmVariant: 'danger'
+      });
       if (!proceedConfirmed) return;
 
       await this.cleanupAndMerge();
