@@ -10,21 +10,41 @@ class OptionsManager {
     this.loadSettings();
     this.updateAuthStatus();
     this.loadSupportLinks();
+    this.refreshLocalBackups(); // Load local backup list on startup
+    // Auto backups will load when user visits backup tab
     const initialTab = document.querySelector('.tab-btn.active')?.dataset.tab || 'api';
     this.showTab(initialTab);
     this.startTokenHealthCheck();
 
     // Auto-check Worker status on load
     setTimeout(() => this.autoCheckWorker(), 1000);
+
+    // Check for mandatory backup requirement (async)
+    this.checkMandatoryBackup();
+
+    // Load notification style preference
+    this.loadNotificationStyle();
+
+    // Load color theme preference
+    this.loadTheme();
+    // Load color mode and auto-confirm preference
+    this.loadColorMode();
+
+    // Compute initial notification offset
+    this.updateNotificationOffset();
+    // Keep in sync on resize
+    window.addEventListener('resize', () => this.updateNotificationOffset());
   }
 
   initializeElements() {
     this.elements = {
       clientId: document.getElementById('clientId'),
       clientSecret: document.getElementById('clientSecret'),
-      managedOAuth: document.getElementById('managedOAuth'),
+      authMethod: document.getElementById('authMethod'),
       managedOAuthBaseUrl: document.getElementById('managedOAuthBaseUrl'),
       managedBaseEdit: document.getElementById('managedBaseEdit'),
+      toggleManagedOAuth: document.getElementById('toggleManagedOAuth'),
+      managedOAuthDetails: document.getElementById('managedOAuthDetails'),
       checkWorker: document.getElementById('checkWorker'),
       workerStatus: document.getElementById('workerStatus'),
       viewAuthState: document.getElementById('viewAuthState'),
@@ -37,12 +57,27 @@ class OptionsManager {
       redirectReset: document.getElementById('redirectReset'),
       redirectHint: document.getElementById('redirectHint'),
       saveConfig: document.getElementById('saveConfig'),
-      authenticateManaged: document.getElementById('authenticateManaged'),
-      authenticateManual: document.getElementById('authenticateManual'),
-      manualAuthSection: document.getElementById('manualAuthSection'),
+      authenticateBtn: document.getElementById('authenticateBtn'),
       manualConfigSection: document.getElementById('manualConfigSection'),
       manualConfigDetails: document.getElementById('manualConfigDetails'),
       toggleManualConfig: document.getElementById('toggleManualConfig'),
+      closeBetaNotice: document.getElementById('closeBetaNotice'),
+      betaNotificationBar: document.getElementById('betaNotificationBar'),
+      closeBetaNotificationBar: document.getElementById('closeBetaNotificationBar'),
+      quickBackupBtn: document.getElementById('quickBackupBtn'),
+      betaNotificationBarAlt: document.getElementById('betaNotificationBarAlt'),
+      closeBetaNotificationBarAlt: document.getElementById('closeBetaNotificationBarAlt'),
+      quickBackupBtnAlt: document.getElementById('quickBackupBtnAlt'),
+      modernNotification: document.getElementById('modernNotification'),
+      minimalNotification: document.getElementById('minimalNotification'),
+      applyNotificationStyle: document.getElementById('applyNotificationStyle'),
+      previewNotificationStyle: document.getElementById('previewNotificationStyle'),
+      // Theme + general controls
+      themeSelect: document.getElementById('themeSelect'),
+      themePreview: document.getElementById('themePreview'),
+      applyTheme: document.getElementById('applyTheme'),
+      darkModeToggle: document.getElementById('darkModeToggle'),
+      betaNotice: document.getElementById('betaNotice'),
       closePrivacyNotice: document.getElementById('closePrivacyNotice'),
       privacyNotice: document.getElementById('privacyNotice'),
       authStatus: document.getElementById('authStatus'),
@@ -66,31 +101,86 @@ class OptionsManager {
       syncModeSelect: document.getElementById('syncModeSelect'),
       // collections chooser
       importAll: document.getElementById('importAll'),
+      topLevelOnlyMode: document.getElementById('topLevelOnlyMode'),
+      customSelectionMode: document.getElementById('customSelectionMode'),
+      customCollectionControls: document.getElementById('customCollectionControls'),
       collectionsList: document.getElementById('collectionsList'),
       collectionsSearch: document.getElementById('collectionsSearch'),
       selectAllCollections: document.getElementById('selectAllCollections'),
       clearCollections: document.getElementById('clearCollections'),
       refreshCollections: document.getElementById('refreshCollections'),
       cleanupDuplicates: document.getElementById('cleanupDuplicates'),
-      clearAllBookmarks: document.getElementById('clearAllBookmarks')
+      mergeDuplicateFolders: document.getElementById('mergeDuplicateFolders'),
+      cleanupAndMerge: document.getElementById('cleanupAndMerge'),
+      clearAllBookmarks: document.getElementById('clearAllBookmarks'),
+      lastBackupTime: document.getElementById('lastBackupTime'),
+      createBackup: document.getElementById('createBackup'),
+      restoreFromFile: document.getElementById('restoreFromFile'),
+      restoreFile: document.getElementById('restoreFile'),
+      emergencyRestore: document.getElementById('emergencyRestore'),
+      scanDuplicates: document.getElementById('scanDuplicates'),
+      duplicatePreview: document.getElementById('duplicatePreview'),
+      duplicateResults: document.getElementById('duplicateResults'),
+      autoCleanupSelected: document.getElementById('autoCleanupSelected'),
+      advancedSelection: document.getElementById('advancedSelection'),
+      cancelScan: document.getElementById('cancelScan'),
+      localBackupsList: document.getElementById('localBackupsList'),
+      refreshBackups: document.getElementById('refreshBackups'),
+      clearOldBackups: document.getElementById('clearOldBackups'),
+      // Backup tab elements
+      autoBackupsList: document.getElementById('autoBackupsList'),
+      refreshAutoBackups: document.getElementById('refreshAutoBackups'),
+      clearOldAutoBackups: document.getElementById('clearOldAutoBackups'),
+      createBackup: document.getElementById('createBackup'),
+      downloadBackupFile: document.getElementById('downloadBackupFile'),
+      restoreFromBackup: document.getElementById('restoreFromBackup'),
+      restoreBackupFile: document.getElementById('restoreBackupFile'),
+      restoreLastBackup: document.getElementById('restoreLastBackup'),
+      // Duplicates tab elements
+      scanDuplicatesTab: document.getElementById('scanDuplicatesTab'),
+      autoFixDuplicates: document.getElementById('autoFixDuplicates'),
+      refreshDuplicateView: document.getElementById('refreshDuplicateView'),
+      duplicateStatus: document.getElementById('duplicateStatus'),
+      duplicateStatusText: document.getElementById('duplicateStatusText'),
+      duplicateResultsTab: document.getElementById('duplicateResultsTab'),
+      duplicateBookmarkCount: document.getElementById('duplicateBookmarkCount'),
+      duplicateBookmarksList: document.getElementById('duplicateBookmarksList'),
+      duplicateFolderCount: document.getElementById('duplicateFolderCount'),
+      duplicateFoldersList: document.getElementById('duplicateFoldersList'),
+      selectAllDuplicates: document.getElementById('selectAllDuplicates'),
+      selectNoneDuplicates: document.getElementById('selectNoneDuplicates'),
+      removeSelectedDuplicates: document.getElementById('removeSelectedDuplicates'),
+      includeSubfolders: document.getElementById('includeSubfolders'),
+      exactTitleMatch: document.getElementById('exactTitleMatch'),
+      createBackupBeforeRemoval: document.getElementById('createBackupBeforeRemoval')
     };
   }
 
   bindEvents() {
     const E = this.elements;
     E.saveConfig && E.saveConfig.addEventListener('click', () => this.saveConfiguration());
-    E.authenticateManaged && E.authenticateManaged.addEventListener('click', () => this.authenticateManaged());
-    E.authenticateManual && E.authenticateManual.addEventListener('click', () => this.authenticateManual());
+    E.authenticateBtn && E.authenticateBtn.addEventListener('click', () => this.authenticate());
     E.testConnection && E.testConnection.addEventListener('click', () => this.testConnection());
     E.logout && E.logout.addEventListener('click', () => this.logout());
     E.syncNow && E.syncNow.addEventListener('click', () => this.syncNow());
 
     // Auto-save on input change
     [E.clientId, E.clientSecret, E.managedOAuthBaseUrl].forEach(input => { input && input.addEventListener('input', () => this.saveConfiguration()); });
-    // Managed OAuth is disabled in UI; keep handler but will be no-op
-    E.managedOAuth && E.managedOAuth.addEventListener('change', () => this.onManagedToggle());
+    E.authMethod && E.authMethod.addEventListener('change', () => this.onAuthMethodChange());
     E.managedBaseEdit && E.managedBaseEdit.addEventListener('click', () => this.toggleManagedBaseEdit());
+    E.toggleManagedOAuth && E.toggleManagedOAuth.addEventListener('click', () => this.toggleManagedOAuth());
     E.toggleManualConfig && E.toggleManualConfig.addEventListener('click', () => this.toggleManualConfig());
+    E.closeBetaNotice && E.closeBetaNotice.addEventListener('click', () => this.closeBetaNotice());
+    E.closeBetaNotificationBar && E.closeBetaNotificationBar.addEventListener('click', () => this.closeBetaNotificationBar());
+    E.quickBackupBtn && E.quickBackupBtn.addEventListener('click', () => this.quickBackup());
+    E.closeBetaNotificationBarAlt && E.closeBetaNotificationBarAlt.addEventListener('click', () => this.closeBetaNotificationBar());
+    E.quickBackupBtnAlt && E.quickBackupBtnAlt.addEventListener('click', () => this.quickBackup());
+    E.applyNotificationStyle && E.applyNotificationStyle.addEventListener('click', () => this.applyNotificationStyle());
+    E.previewNotificationStyle && E.previewNotificationStyle.addEventListener('click', () => this.previewNotificationStyle());
+    // General settings events
+    this.elements.applyTheme && this.elements.applyTheme.addEventListener('click', () => this.applyTheme());
+    this.elements.themeSelect && this.elements.themeSelect.addEventListener('change', () => this.updateThemePreview());
+    this.elements.darkModeToggle && this.elements.darkModeToggle.addEventListener('change', () => this.toggleColorMode());
     E.closePrivacyNotice && E.closePrivacyNotice.addEventListener('click', () => this.closePrivacyNotice());
     E.redirectReset && E.redirectReset.addEventListener('click', () => this.resetRedirectUri());
     E.redirectUri && E.redirectUri.addEventListener('input', () => this.validateRedirectUri());
@@ -127,14 +217,48 @@ class OptionsManager {
     importFile && importFile.addEventListener('change', () => this.onImportFileSelected());
 
     // Collections chooser
-    const topLevelOnly = document.getElementById('topLevelOnly');
-    topLevelOnly && topLevelOnly.addEventListener('change', () => this.onTopLevelOnlyToggle());
+    // Collection mode radio buttons
+    E.topLevelOnlyMode && E.topLevelOnlyMode.addEventListener('change', () => this.onCollectionModeChange());
+    E.customSelectionMode && E.customSelectionMode.addEventListener('change', () => this.onCollectionModeChange());
+
     E.collectionsSearch && E.collectionsSearch.addEventListener('input', () => this.filterCollections());
     E.selectAllCollections && E.selectAllCollections.addEventListener('click', () => this.setAllCollections(true));
     E.clearCollections && E.clearCollections.addEventListener('click', () => this.setAllCollections(false));
     E.refreshCollections && E.refreshCollections.addEventListener('click', () => this.refreshAll());
-    E.cleanupDuplicates && E.cleanupDuplicates.addEventListener('click', () => this.cleanupDuplicates());
+    E.cleanupDuplicates && E.cleanupDuplicates.addEventListener('click', () => this.cleanupDuplicatesWithBackup());
+    E.mergeDuplicateFolders && E.mergeDuplicateFolders.addEventListener('click', () => this.mergeDuplicateFoldersWithBackup());
+    E.cleanupAndMerge && E.cleanupAndMerge.addEventListener('click', () => this.cleanupAndMergeWithBackup());
     E.clearAllBookmarks && E.clearAllBookmarks.addEventListener('click', () => this.clearAllBookmarks());
+
+    // Backup and restore functions
+    E.createBackup && E.createBackup.addEventListener('click', () => this.createBackupNow());
+    E.restoreFromFile && E.restoreFromFile.addEventListener('click', () => this.triggerRestoreFile());
+    E.restoreFile && E.restoreFile.addEventListener('change', (e) => this.handleRestoreFile(e));
+    E.emergencyRestore && E.emergencyRestore.addEventListener('click', () => this.emergencyRestore());
+    // Local backup management
+    E.refreshBackups && E.refreshBackups.addEventListener('click', () => this.refreshLocalBackups());
+    E.clearOldBackups && E.clearOldBackups.addEventListener('click', () => this.clearOldBackups());
+    // Backup tab management
+    E.refreshAutoBackups && E.refreshAutoBackups.addEventListener('click', () => this.refreshAutoBackups());
+    E.clearOldAutoBackups && E.clearOldAutoBackups.addEventListener('click', () => this.clearOldAutoBackups());
+    E.downloadBackupFile && E.downloadBackupFile.addEventListener('click', () => this.downloadLatestBackup());
+    E.restoreFromBackup && E.restoreFromBackup.addEventListener('click', () => this.triggerRestoreBackup());
+    E.restoreBackupFile && E.restoreBackupFile.addEventListener('change', (e) => this.handleRestoreBackupFile(e));
+    E.restoreLastBackup && E.restoreLastBackup.addEventListener('click', () => this.restoreLastAutoBackup());
+
+    // Duplicates tab functions
+    E.scanDuplicatesTab && E.scanDuplicatesTab.addEventListener('click', () => this.scanDuplicatesInTab());
+    E.autoFixDuplicates && E.autoFixDuplicates.addEventListener('click', () => this.autoFixAllDuplicates());
+    E.refreshDuplicateView && E.refreshDuplicateView.addEventListener('click', () => this.refreshDuplicateView());
+    E.selectAllDuplicates && E.selectAllDuplicates.addEventListener('click', () => this.selectAllDuplicates());
+    E.selectNoneDuplicates && E.selectNoneDuplicates.addEventListener('click', () => this.selectNoneDuplicates());
+    E.removeSelectedDuplicates && E.removeSelectedDuplicates.addEventListener('click', () => this.removeSelectedDuplicates());
+
+    // Smart cleanup functions
+    E.scanDuplicates && E.scanDuplicates.addEventListener('click', () => this.scanForDuplicates());
+    E.autoCleanupSelected && E.autoCleanupSelected.addEventListener('click', () => this.autoCleanupSelected());
+    E.advancedSelection && E.advancedSelection.addEventListener('click', () => this.showAdvancedSelection());
+    E.cancelScan && E.cancelScan.addEventListener('click', () => this.cancelDuplicateScan());
 
     // Clear confirmation form elements
     const clearConfirmText = document.getElementById('clearConfirmText');
@@ -258,11 +382,13 @@ class OptionsManager {
       const E = this.elements;
       if (config.clientId) E.clientId.value = config.clientId;
       if (config.clientSecret) E.clientSecret.value = config.clientSecret;
-      // Force managed OAuth off in UI for now
-      if (E.managedOAuth) {
-        E.managedOAuth.disabled = false;
-        E.managedOAuth.checked = (config.managedOAuth ?? true); // default ON
+
+      // Set auth method dropdown
+      const authMethod = config.managedOAuth ?? true ? 'managed' : 'manual';
+      if (E.authMethod) {
+        E.authMethod.value = authMethod;
       }
+
       if (E.managedOAuthBaseUrl) {
         const defaultBase = 'https://rdoauth.daiquiri.dev';
         E.managedOAuthBaseUrl.value = config.managedOAuthBaseUrl || defaultBase;
@@ -270,7 +396,13 @@ class OptionsManager {
         E.managedOAuthBaseUrl.disabled = true;
         if (E.managedBaseEdit) E.managedBaseEdit.textContent = 'Edit';
       }
-      this.updateManagedUi();
+
+      this.updateAuthMethodDisplay(authMethod);
+
+      // Load backup time
+      if (E.lastBackupTime && config.lastBackupTime) {
+        E.lastBackupTime.textContent = new Date(config.lastBackupTime).toLocaleString();
+      }
 
       if (E.redirectUri) {
         if (config.redirectUri) {
@@ -383,6 +515,20 @@ class OptionsManager {
     if (baseGroup) baseGroup.style.display = managed ? 'block' : 'none';
   }
 
+  toggleManagedOAuth() {
+    const isHidden = this.elements.managedOAuthDetails?.classList.contains('hidden');
+
+    if (this.elements.managedOAuthDetails) {
+      this.elements.managedOAuthDetails.classList.toggle('hidden');
+    }
+
+    if (this.elements.toggleManagedOAuth) {
+      this.elements.toggleManagedOAuth.textContent = isHidden
+        ? 'Hide'
+        : 'Show';
+    }
+  }
+
   toggleManualConfig() {
     const isHidden = this.elements.manualConfigDetails?.classList.contains('hidden');
 
@@ -394,6 +540,76 @@ class OptionsManager {
       this.elements.toggleManualConfig.textContent = isHidden
         ? 'Hide'
         : 'Show';
+    }
+  }
+
+  onAuthMethodChange() {
+    const authMethod = this.elements.authMethod?.value || 'managed';
+    this.updateAuthMethodDisplay(authMethod);
+    this.saveConfiguration();
+  }
+
+  updateAuthMethodDisplay(authMethod) {
+    const managedSection = document.getElementById('managedOAuthSection');
+    const manualSection = document.getElementById('manualConfigSection');
+
+    if (managedSection) {
+      managedSection.style.display = authMethod === 'managed' ? 'block' : 'none';
+    }
+    if (manualSection) {
+      manualSection.style.display = authMethod === 'manual' ? 'block' : 'none';
+    }
+  }
+
+  async authenticate() {
+    const authMethod = this.elements.authMethod?.value || 'managed';
+    if (authMethod === 'managed') {
+      await this.authenticateManaged();
+    } else {
+      await this.authenticateManual();
+    }
+  }
+
+  closeBetaNotice() {
+    if (this.elements.betaNotice) {
+      this.elements.betaNotice.style.display = 'none';
+    }
+  }
+
+  closeBetaNotificationBar() {
+    // Hide both notification bars
+    if (this.elements.betaNotificationBar) {
+      this.elements.betaNotificationBar.style.display = 'none';
+    }
+    if (this.elements.betaNotificationBarAlt) {
+      this.elements.betaNotificationBarAlt.style.display = 'none';
+    }
+
+    // Adjust page layout when notification is closed
+    document.body.classList.add('notification-hidden');
+
+    // Reset notification offset
+    this.setNotificationHeight(0);
+  }
+
+  async quickBackup() {
+    try {
+      const btn = this.elements.quickBackupBtn;
+      if (btn) {
+        btn.disabled = true;
+        btn.textContent = 'Creating...';
+      }
+
+      await this.createAutoBackup();
+      this.showMessage('Quick backup created successfully', 'success');
+    } catch (error) {
+      this.showMessage('Failed to create quick backup: ' + error.message, 'error');
+    } finally {
+      const btn = this.elements.quickBackupBtn;
+      if (btn) {
+        btn.disabled = false;
+        btn.textContent = '📥 Backup Now';
+      }
     }
   }
 
@@ -1186,6 +1402,432 @@ class OptionsManager {
     }
   }
 
+  async createBackupNow() {
+    try {
+      const btn = this.elements.createBackup;
+      if (btn) {
+        btn.disabled = true;
+        btn.textContent = 'Creating...';
+      }
+
+      await this.createAutoBackup();
+      this.showMessage('Manual backup created successfully', 'success');
+    } catch (error) {
+      this.showMessage('Backup creation failed: ' + error.message, 'error');
+    } finally {
+      const btn = this.elements.createBackup;
+      if (btn) {
+        btn.disabled = false;
+        btn.textContent = 'Create Backup Now';
+      }
+    }
+  }
+
+  async createAutoBackup() {
+    try {
+      const bookmarkTree = await chrome.bookmarks.getTree();
+      const timestamp = new Date().toISOString();
+      const backupData = {
+        version: '1.2.0',
+        timestamp: timestamp,
+        type: 'auto-backup',
+        bookmarks: bookmarkTree
+      };
+
+      // Save backup timestamp
+      await chrome.storage.sync.set({ lastBackupTime: timestamp });
+
+      // Update UI
+      if (this.elements.lastBackupTime) {
+        this.elements.lastBackupTime.textContent = new Date(timestamp).toLocaleString();
+      }
+
+      // Store backup in local storage with timestamp key
+      const backupKey = `backup_${timestamp.replace(/[:.]/g, '-')}`;
+      await chrome.storage.local.set({ [backupKey]: backupData });
+
+      // Maintain list of backup keys for management
+      const { backupKeys = [] } = await chrome.storage.sync.get(['backupKeys']);
+      backupKeys.push(backupKey);
+
+      // Keep only last 10 backups to prevent storage overflow
+      if (backupKeys.length > 10) {
+        const oldKey = backupKeys.shift();
+        await chrome.storage.local.remove(oldKey);
+      }
+
+      await chrome.storage.sync.set({ backupKeys });
+
+      return backupData;
+    } catch (error) {
+      console.error('Auto backup failed:', error);
+      throw error;
+    }
+  }
+
+  triggerRestoreFile() {
+    if (this.elements.restoreFile) {
+      this.elements.restoreFile.click();
+    }
+  }
+
+  async handleRestoreFile(event) {
+    const file = event.target.files[0];
+    if (!file) return;
+
+    const confirmed = confirm('⚠️ RESTORE WARNING\n\nThis will restore bookmarks from the backup file. Current bookmarks will be merged with backup contents.\n\nProceed with restore?');
+    if (!confirmed) {
+      event.target.value = ''; // Clear file selection
+      return;
+    }
+
+    try {
+      const btn = this.elements.restoreFromFile;
+      if (btn) {
+        btn.disabled = true;
+        btn.textContent = 'Restoring...';
+      }
+
+      const text = await file.text();
+      const backupData = JSON.parse(text);
+
+      if (!backupData.bookmarks) {
+        throw new Error('Invalid backup file format');
+      }
+
+      await this.restoreFromBackup(backupData);
+      this.showMessage('Backup restored successfully', 'success');
+    } catch (error) {
+      this.showMessage('Restore failed: ' + error.message, 'error');
+    } finally {
+      const btn = this.elements.restoreFromFile;
+      if (btn) {
+        btn.disabled = false;
+        btn.textContent = 'Restore from Backup';
+      }
+      event.target.value = ''; // Clear file selection
+    }
+  }
+
+  async emergencyRestore() {
+    const confirmed = confirm('🚨 EMERGENCY RESTORE WARNING\n\nThis will DELETE ALL current bookmarks and restore from a backup file.\n\nThis is a destructive operation that cannot be undone.\n\nOnly proceed if your current bookmarks are corrupted.\n\nClick OK to select backup file.');
+    if (!confirmed) return;
+
+    // Trigger file selection
+    const input = document.createElement('input');
+    input.type = 'file';
+    input.accept = '.json';
+    input.onchange = async (e) => {
+      const file = e.target.files[0];
+      if (!file) return;
+
+      const finalConfirm = confirm('FINAL WARNING: All current bookmarks will be deleted and replaced with backup contents.\n\nThis action cannot be undone!\n\nProceed?');
+      if (!finalConfirm) return;
+
+      try {
+        const btn = this.elements.emergencyRestore;
+        if (btn) {
+          btn.disabled = true;
+          btn.textContent = 'Emergency Restoring...';
+        }
+
+        // Clear all bookmarks first
+        await this.clearAllBookmarksForRestore();
+
+        // Restore from backup
+        const text = await file.text();
+        const backupData = JSON.parse(text);
+
+        if (!backupData.bookmarks) {
+          throw new Error('Invalid backup file format');
+        }
+
+        await this.restoreFromBackup(backupData);
+        this.showMessage('Emergency restore completed successfully', 'success');
+      } catch (error) {
+        this.showMessage('Emergency restore failed: ' + error.message, 'error');
+      } finally {
+        const btn = this.elements.emergencyRestore;
+        if (btn) {
+          btn.disabled = false;
+          btn.textContent = 'Emergency Restore (Clear All + Restore)';
+        }
+      }
+    };
+    input.click();
+  }
+
+  async restoreFromBackup(backupData) {
+    try {
+      // Get current bookmark tree structure to map folders correctly
+      const currentTree = await chrome.bookmarks.getTree();
+      const bookmarkBarId = currentTree[0].children[0].id; // Usually '1'
+      const otherBookmarksId = currentTree[0].children[1].id; // Usually '2'
+
+      // Create bookmarks from backup preserving original locations
+      for (const rootNode of backupData.bookmarks) {
+        if (rootNode.children) {
+          for (const topLevelNode of rootNode.children) {
+            // Map original Chrome bookmark folders to current structure
+            let targetParentId;
+
+            if (topLevelNode.title === 'Bookmarks bar' || topLevelNode.id === '1') {
+              targetParentId = bookmarkBarId;
+            } else if (topLevelNode.title === 'Other bookmarks' || topLevelNode.id === '2') {
+              targetParentId = otherBookmarksId;
+            } else {
+              // For other folders, restore to Other Bookmarks
+              targetParentId = otherBookmarksId;
+            }
+
+            if (topLevelNode.children) {
+              await this.createBookmarksFromTree(topLevelNode.children, targetParentId);
+            }
+          }
+        }
+      }
+      console.log('Restore completed');
+    } catch (error) {
+      console.error('Restore failed:', error);
+      throw error;
+    }
+  }
+
+  async clearAllBookmarksForRestore() {
+    try {
+      // This is specifically for emergency restore - clears everything
+      const bookmarkTree = await chrome.bookmarks.getTree();
+
+      for (const rootNode of bookmarkTree) {
+        if (rootNode.children) {
+          for (const topLevelNode of rootNode.children) {
+            if (topLevelNode.children) {
+              // Clear all children but keep the folder structure
+              for (const child of topLevelNode.children) {
+                try {
+                  await chrome.bookmarks.removeTree(child.id);
+                } catch (error) {
+                  console.warn('Failed to remove bookmark tree:', child, error);
+                }
+              }
+            }
+          }
+        }
+      }
+    } catch (error) {
+      console.error('Clear all bookmarks failed:', error);
+      throw error;
+    }
+  }
+
+  async scanForDuplicates() {
+    try {
+      const btn = this.elements.scanDuplicates;
+      if (btn) {
+        btn.disabled = true;
+        btn.textContent = 'Scanning...';
+      }
+
+      // Get all bookmarks to analyze
+      const bookmarkTree = await chrome.bookmarks.getTree();
+
+      // Find duplicate bookmarks and folders
+      const duplicateBookmarks = this.findDuplicateBookmarks(bookmarkTree);
+      const duplicateFolders = this.findDuplicateFolders(bookmarkTree);
+
+      // Store results for later use
+      this.duplicateAnalysis = {
+        bookmarks: duplicateBookmarks,
+        folders: duplicateFolders,
+        selectedBookmarks: new Set(),
+        selectedFolders: new Set()
+      };
+
+      // Show results
+      this.displayDuplicateResults(duplicateBookmarks, duplicateFolders);
+
+      // Show preview section
+      if (this.elements.duplicatePreview) {
+        this.elements.duplicatePreview.classList.remove('hidden');
+      }
+
+    } catch (error) {
+      this.showMessage('Duplicate scan failed: ' + error.message, 'error');
+    } finally {
+      const btn = this.elements.scanDuplicates;
+      if (btn) {
+        btn.disabled = false;
+        btn.textContent = 'Scan for Duplicates';
+      }
+    }
+  }
+
+  findDuplicateBookmarks(bookmarkTree) {
+    const bookmarkMap = new Map();
+    const duplicates = [];
+
+    // Recursively find all bookmarks
+    const findBookmarks = (nodes) => {
+      for (const node of nodes) {
+        if (node.url) { // It's a bookmark
+          const url = node.url.toLowerCase();
+
+          if (!bookmarkMap.has(url)) {
+            bookmarkMap.set(url, []);
+          }
+
+          bookmarkMap.get(url).push({
+            id: node.id,
+            title: node.title,
+            url: node.url,
+            parentId: node.parentId
+          });
+        } else if (node.children) {
+          findBookmarks(node.children);
+        }
+      }
+    };
+
+    findBookmarks(bookmarkTree);
+
+    // Find URLs with multiple bookmarks
+    for (const [url, bookmarks] of bookmarkMap.entries()) {
+      if (bookmarks.length > 1) {
+        duplicates.push({
+          url: url,
+          bookmarks: bookmarks,
+          count: bookmarks.length
+        });
+      }
+    }
+
+    return duplicates;
+  }
+
+  displayDuplicateResults(duplicateBookmarks, duplicateFolders) {
+    const resultsContainer = this.elements.duplicateResults;
+    if (!resultsContainer) return;
+
+    let html = '';
+
+    // Summary
+    html += `<div style="margin-bottom: 16px; padding: 8px; background: #e3f2fd; border-radius: 4px;">`;
+    html += `<strong>Scan Results:</strong> `;
+    html += `${duplicateBookmarks.length} duplicate bookmark groups, `;
+    html += `${duplicateFolders.length} duplicate folder groups found.`;
+    html += `</div>`;
+
+    if (duplicateBookmarks.length === 0 && duplicateFolders.length === 0) {
+      html += `<div style="color: #28a745; font-weight: 500;">✅ No duplicates found! Your bookmarks are clean.</div>`;
+      resultsContainer.innerHTML = html;
+      return;
+    }
+
+    // Duplicate bookmarks
+    if (duplicateBookmarks.length > 0) {
+      html += `<h5 style="color: #dc3545; margin: 12px 0 8px 0;">📚 Duplicate Bookmarks</h5>`;
+
+      for (let i = 0; i < Math.min(duplicateBookmarks.length, 5); i++) {
+        const group = duplicateBookmarks[i];
+        html += `<div style="margin: 8px 0; padding: 8px; border: 1px solid #ddd; border-radius: 4px; background: white;">`;
+        html += `<div style="font-weight: 500; margin-bottom: 4px;">${group.bookmarks[0].title}</div>`;
+        html += `<div style="font-size: 12px; color: #666; margin-bottom: 4px;">${group.url}</div>`;
+        html += `<div style="font-size: 12px; color: #dc3545;">Found ${group.count} copies</div>`;
+        html += `</div>`;
+      }
+
+      if (duplicateBookmarks.length > 5) {
+        html += `<div style="color: #666; font-style: italic;">... and ${duplicateBookmarks.length - 5} more groups</div>`;
+      }
+    }
+
+    // Duplicate folders
+    if (duplicateFolders.length > 0) {
+      html += `<h5 style="color: #dc3545; margin: 12px 0 8px 0;">📁 Duplicate Folders</h5>`;
+
+      for (let i = 0; i < Math.min(duplicateFolders.length, 5); i++) {
+        const group = duplicateFolders[i];
+        html += `<div style="margin: 8px 0; padding: 8px; border: 1px solid #ddd; border-radius: 4px; background: white;">`;
+        html += `<div style="font-weight: 500; margin-bottom: 4px;">📁 ${group.folders[0].title}</div>`;
+        html += `<div style="font-size: 12px; color: #dc3545;">Found ${group.folders.length} folders with this name</div>`;
+        html += `</div>`;
+      }
+
+      if (duplicateFolders.length > 5) {
+        html += `<div style="color: #666; font-style: italic;">... and ${duplicateFolders.length - 5} more groups</div>`;
+      }
+    }
+
+    resultsContainer.innerHTML = html;
+  }
+
+  async autoCleanupSelected() {
+    if (!this.duplicateAnalysis) {
+      this.showMessage('No scan results available. Please scan first.', 'error');
+      return;
+    }
+
+    const confirmed = confirm('⚠️ AUTO CLEANUP CONFIRMATION\n\nThis will automatically clean all found duplicates:\n\n• Remove duplicate bookmarks (keep first occurrence)\n• Merge duplicate folders (merge into first folder)\n\nProceed with auto cleanup?');
+    if (!confirmed) return;
+
+    try {
+      // Create backup first
+      await this.createAutoBackup();
+
+      // Wait a moment for backup
+      await new Promise(resolve => setTimeout(resolve, 1000));
+
+      let removedBookmarks = 0;
+      let mergedFolders = 0;
+
+      // Clean duplicate bookmarks
+      for (const group of this.duplicateAnalysis.bookmarks) {
+        // Keep first bookmark, remove others
+        const toRemove = group.bookmarks.slice(1);
+        for (const bookmark of toRemove) {
+          try {
+            await chrome.bookmarks.remove(bookmark.id);
+            removedBookmarks++;
+          } catch (error) {
+            console.warn('Failed to remove duplicate bookmark:', bookmark, error);
+          }
+        }
+      }
+
+      // Merge duplicate folders
+      for (const group of this.duplicateAnalysis.folders) {
+        try {
+          await this.mergeFolderGroup(group);
+          mergedFolders++;
+        } catch (error) {
+          console.warn('Failed to merge folder group:', group, error);
+        }
+      }
+
+      this.showMessage(`Auto cleanup completed! Removed ${removedBookmarks} duplicate bookmarks, merged ${mergedFolders} folder groups.`, 'success');
+
+      // Hide preview and clear results
+      this.cancelDuplicateScan();
+
+    } catch (error) {
+      this.showMessage('Auto cleanup failed: ' + error.message, 'error');
+    }
+  }
+
+  showAdvancedSelection() {
+    this.showMessage('Advanced selection interface is coming in future version. For now, use Auto Cleanup for safe automated cleaning.', 'info');
+  }
+
+  cancelDuplicateScan() {
+    if (this.elements.duplicatePreview) {
+      this.elements.duplicatePreview.classList.add('hidden');
+    }
+    if (this.elements.duplicateResults) {
+      this.elements.duplicateResults.innerHTML = '';
+    }
+    this.duplicateAnalysis = null;
+  }
+
   onImportFileSelected() {
     const importFile = document.getElementById('importFile');
     const importBtn = document.getElementById('importBookmarks');
@@ -1317,6 +1959,48 @@ class OptionsManager {
     }
   }
 
+  async cleanupDuplicatesWithBackup() {
+    const confirmed = confirm('⚠️ BACKUP REQUIRED\n\nThis operation will remove duplicate bookmarks permanently. A backup is required before proceeding.\n\nClick OK to download backup first, then proceed with cleanup.');
+    if (!confirmed) return;
+
+    try {
+      // Force backup download first
+      await this.exportBookmarks();
+
+      // Wait a moment for download to start
+      await new Promise(resolve => setTimeout(resolve, 1000));
+
+      // Confirm again after backup
+      const proceedConfirmed = confirm('Backup downloaded. Proceed with removing duplicate bookmarks?\n\nThis action cannot be undone.');
+      if (!proceedConfirmed) return;
+
+      await this.cleanupDuplicates();
+    } catch (error) {
+      this.showMessage('Backup or cleanup failed: ' + error.message, 'error');
+    }
+  }
+
+  async mergeDuplicateFoldersWithBackup() {
+    const confirmed = confirm('⚠️ BACKUP REQUIRED\n\nThis operation will merge folders with identical names and remove duplicates permanently. A backup is required before proceeding.\n\nClick OK to download backup first, then proceed with folder merge.');
+    if (!confirmed) return;
+
+    try {
+      // Force backup download first
+      await this.exportBookmarks();
+
+      // Wait a moment for download to start
+      await new Promise(resolve => setTimeout(resolve, 1000));
+
+      // Confirm again after backup
+      const proceedConfirmed = confirm('Backup downloaded. Proceed with merging duplicate folders?\n\nThis action cannot be undone.');
+      if (!proceedConfirmed) return;
+
+      await this.mergeDuplicateFolders();
+    } catch (error) {
+      this.showMessage('Backup or folder merge failed: ' + error.message, 'error');
+    }
+  }
+
   async cleanupDuplicates() {
     try {
       if (this.elements.cleanupDuplicates) {
@@ -1341,6 +2025,174 @@ class OptionsManager {
         this.elements.cleanupDuplicates.textContent = 'Remove Duplicate Bookmarks';
       }
     }
+  }
+
+  async mergeDuplicateFolders() {
+    try {
+      if (this.elements.mergeDuplicateFolders) {
+        this.elements.mergeDuplicateFolders.disabled = true;
+        this.elements.mergeDuplicateFolders.textContent = 'Merging...';
+      }
+
+      console.log('Options: Starting merge duplicate folders...');
+
+      // Get all bookmarks to find duplicate folders
+      const bookmarkTree = await chrome.bookmarks.getTree();
+      const duplicateFolders = this.findDuplicateFolders(bookmarkTree);
+
+      if (duplicateFolders.length === 0) {
+        this.showMessage('No duplicate folders found', 'info');
+        return;
+      }
+
+      let mergedCount = 0;
+      let mergedBookmarks = 0;
+
+      for (const duplicateGroup of duplicateFolders) {
+        const mergeResult = await this.mergeFolderGroup(duplicateGroup);
+        mergedCount++;
+        mergedBookmarks += mergeResult.bookmarksMerged;
+      }
+
+      this.showMessage(`Merged ${mergedCount} duplicate folder groups, ${mergedBookmarks} bookmarks consolidated`, 'success');
+    } catch (error) {
+      this.showMessage(`Folder merge failed: ${error.message}`, 'error');
+    } finally {
+      if (this.elements.mergeDuplicateFolders) {
+        this.elements.mergeDuplicateFolders.disabled = false;
+        this.elements.mergeDuplicateFolders.textContent = 'Merge Duplicate Folders';
+      }
+    }
+  }
+
+  async cleanupAndMergeWithBackup() {
+    const confirmed = confirm('⚠️ BACKUP REQUIRED\n\nThis operation will remove duplicate bookmarks AND merge duplicate folders permanently. A backup is required before proceeding.\n\nClick OK to download backup first, then proceed with complete cleanup.');
+    if (!confirmed) return;
+
+    try {
+      // Force backup download first
+      await this.exportBookmarks();
+
+      // Wait a moment for download to start
+      await new Promise(resolve => setTimeout(resolve, 1000));
+
+      // Confirm again after backup
+      const proceedConfirmed = confirm('Backup downloaded. Proceed with complete cleanup (remove duplicates + merge folders)?\n\nThis action cannot be undone.');
+      if (!proceedConfirmed) return;
+
+      await this.cleanupAndMerge();
+    } catch (error) {
+      this.showMessage('Backup or cleanup failed: ' + error.message, 'error');
+    }
+  }
+
+  async cleanupAndMerge() {
+    try {
+      if (this.elements.cleanupAndMerge) {
+        this.elements.cleanupAndMerge.disabled = true;
+        this.elements.cleanupAndMerge.textContent = 'Processing...';
+      }
+
+      // First merge duplicate folders
+      this.showMessage('Step 1: Merging duplicate folders...', 'info');
+      await this.mergeDuplicateFolders();
+
+      // Then cleanup duplicate bookmarks
+      this.showMessage('Step 2: Removing duplicate bookmarks...', 'info');
+      await this.cleanupDuplicates();
+
+      this.showMessage('Complete cleanup finished successfully', 'success');
+    } catch (error) {
+      this.showMessage(`Complete cleanup failed: ${error.message}`, 'error');
+    } finally {
+      if (this.elements.cleanupAndMerge) {
+        this.elements.cleanupAndMerge.disabled = false;
+        this.elements.cleanupAndMerge.textContent = 'Remove Duplicates and Merge';
+      }
+    }
+  }
+
+  findDuplicateFolders(bookmarkTree) {
+    const folderMap = new Map();
+    const duplicates = [];
+
+    // Recursively find all folders
+    const findFolders = (nodes, parentPath = '') => {
+      for (const node of nodes) {
+        if (node.children) { // It's a folder
+          const folderName = node.title.toLowerCase().trim();
+          const folderPath = parentPath + '/' + folderName;
+
+          if (!folderMap.has(folderName)) {
+            folderMap.set(folderName, []);
+          }
+
+          folderMap.get(folderName).push({
+            id: node.id,
+            title: node.title,
+            parentId: node.parentId,
+            path: folderPath,
+            node: node
+          });
+
+          // Recursively check children
+          if (node.children.length > 0) {
+            findFolders(node.children, folderPath);
+          }
+        }
+      }
+    };
+
+    findFolders(bookmarkTree);
+
+    // Find folders with duplicate names (more than 1 occurrence)
+    for (const [folderName, folders] of folderMap.entries()) {
+      if (folders.length > 1) {
+        duplicates.push({
+          name: folderName,
+          folders: folders
+        });
+      }
+    }
+
+    return duplicates;
+  }
+
+  async mergeFolderGroup(duplicateGroup) {
+    const { name, folders } = duplicateGroup;
+    let bookmarksMerged = 0;
+
+    // Keep the first folder as the target, merge others into it
+    const targetFolder = folders[0];
+    const foldersToMerge = folders.slice(1);
+
+    for (const sourceFolder of foldersToMerge) {
+      // Get all bookmarks/subfolders from source folder
+      const [sourceNode] = await chrome.bookmarks.getSubTree(sourceFolder.id);
+
+      if (sourceNode.children) {
+        // Move all children to target folder
+        for (const child of sourceNode.children) {
+          try {
+            await chrome.bookmarks.move(child.id, { parentId: targetFolder.id });
+            if (!child.children) { // It's a bookmark
+              bookmarksMerged++;
+            }
+          } catch (error) {
+            console.warn('Failed to move bookmark:', child, error);
+          }
+        }
+      }
+
+      // Remove the now-empty source folder
+      try {
+        await chrome.bookmarks.remove(sourceFolder.id);
+      } catch (error) {
+        console.warn('Failed to remove empty folder:', sourceFolder, error);
+      }
+    }
+
+    return { bookmarksMerged };
   }
 
   toggleCollectionExpansion(collectionId, expandButton) {
@@ -1385,7 +2237,7 @@ class OptionsManager {
   // ---------- Auth and config actions ----------
   async saveConfiguration() {
     try {
-      const managedOAuth = !!this.elements.managedOAuth?.checked;
+      const managedOAuth = this.elements.authMethod?.value === 'managed';
       const managedOAuthBaseUrl = this.elements.managedOAuthBaseUrl?.value.trim() || 'https://rdoauth.daiquiri.dev';
 
       let clientId = this.elements.clientId?.value.trim() || '';
@@ -2173,10 +3025,942 @@ class OptionsManager {
     // Remove fallback suggestions
     document.querySelectorAll('.fallback-suggestions').forEach(el => el.remove());
   }
+
+  // Local backup management functions
+  async refreshLocalBackups() {
+    try {
+      const btn = this.elements.refreshBackups;
+      if (btn) {
+        btn.disabled = true;
+        btn.textContent = 'Loading...';
+      }
+
+      const { backupKeys = [] } = await chrome.storage.sync.get(['backupKeys']);
+      const container = this.elements.localBackupsList;
+
+      if (!container) return;
+
+      if (backupKeys.length === 0) {
+        container.innerHTML = '<div class="help-text">No local backups found. Backups are created automatically before sync operations.</div>';
+        return;
+      }
+
+      // Load backup metadata for each key
+      const backupMetadata = [];
+      for (const key of backupKeys) {
+        try {
+          const data = await chrome.storage.local.get([key]);
+          if (data[key]) {
+            backupMetadata.push({
+              key,
+              timestamp: data[key].timestamp,
+              version: data[key].version,
+              type: data[key].type
+            });
+          }
+        } catch (error) {
+          console.warn('Failed to load backup metadata for key:', key, error);
+        }
+      }
+
+      // Sort by timestamp (newest first)
+      backupMetadata.sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));
+
+      // Generate backup list HTML
+      const backupListHtml = backupMetadata.map(backup => {
+        const date = new Date(backup.timestamp).toLocaleString();
+        const size = 'Unknown size'; // We could calculate this if needed
+        return `
+          <div style="border: 1px solid #e9ecef; border-radius: 6px; padding: 12px; margin: 8px 0; background: #fff;">
+            <div style="font-weight: 600; margin-bottom: 4px;">${date}</div>
+            <div style="font-size: 14px; color: #6c757d; margin-bottom: 8px;">
+              Type: ${backup.type} | Version: ${backup.version}
+            </div>
+            <div style="display: flex; gap: 8px; flex-wrap: wrap;">
+              <button data-action="restore" data-backup-key="${backup.key}" class="button secondary local-backup-btn" style="font-size: 14px; padding: 4px 8px;">Restore</button>
+              <button data-action="download" data-backup-key="${backup.key}" class="button secondary local-backup-btn" style="font-size: 14px; padding: 4px 8px;">Download</button>
+              <button data-action="delete" data-backup-key="${backup.key}" class="button danger local-backup-btn" style="font-size: 14px; padding: 4px 8px;">Delete</button>
+            </div>
+          </div>
+        `;
+      }).join('');
+
+      container.innerHTML = `
+        <div class="help-text" style="margin-bottom: 12px;">Found ${backupMetadata.length} local backup(s):</div>
+        ${backupListHtml}
+      `;
+
+      // Add event listeners for backup action buttons
+      container.querySelectorAll('.local-backup-btn').forEach(button => {
+        button.addEventListener('click', (e) => {
+          const action = e.target.dataset.action;
+          const backupKey = e.target.dataset.backupKey;
+
+          switch (action) {
+            case 'restore':
+              this.restoreLocalBackup(backupKey);
+              break;
+            case 'download':
+              this.downloadLocalBackup(backupKey);
+              break;
+            case 'delete':
+              this.deleteLocalBackup(backupKey);
+              break;
+          }
+        });
+      });
+
+    } catch (error) {
+      console.error('Failed to load local backups:', error);
+      if (this.elements.localBackupsList) {
+        this.elements.localBackupsList.innerHTML = '<div class="help-text" style="color: #dc3545;">Failed to load backups: ' + error.message + '</div>';
+      }
+    } finally {
+      const btn = this.elements.refreshBackups;
+      if (btn) {
+        btn.disabled = false;
+        btn.textContent = 'Refresh List';
+      }
+    }
+  }
+
+  async restoreLocalBackup(backupKey) {
+    const confirmed = confirm('⚠️ RESTORE FROM LOCAL BACKUP\n\nThis will restore bookmarks from the selected backup. Current bookmarks will be merged with backup contents.\n\nProceed with restore?');
+    if (!confirmed) return;
+
+    try {
+      const data = await chrome.storage.local.get([backupKey]);
+      if (!data[backupKey]) {
+        throw new Error('Backup not found');
+      }
+
+      await this.restoreFromBackup(data[backupKey]);
+      this.showMessage('Local backup restored successfully', 'success');
+    } catch (error) {
+      this.showMessage('Local backup restore failed: ' + error.message, 'error');
+    }
+  }
+
+  async downloadLocalBackup(backupKey) {
+    try {
+      const data = await chrome.storage.local.get([backupKey]);
+      if (!data[backupKey]) {
+        throw new Error('Backup not found');
+      }
+
+      const backupData = data[backupKey];
+      const blob = new Blob([JSON.stringify(backupData, null, 2)], { type: 'application/json' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `local-backup-${backupData.timestamp.replace(/[:.]/g, '-')}.json`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+
+      this.showMessage('Backup downloaded successfully', 'success');
+    } catch (error) {
+      this.showMessage('Failed to download backup: ' + error.message, 'error');
+    }
+  }
+
+  async deleteLocalBackup(backupKey) {
+    const confirmed = confirm('⚠️ DELETE BACKUP\n\nThis will permanently delete the selected backup from local storage.\n\nThis action cannot be undone. Proceed?');
+    if (!confirmed) return;
+
+    try {
+      await chrome.storage.local.remove([backupKey]);
+
+      // Remove from backup keys list
+      const { backupKeys = [] } = await chrome.storage.sync.get(['backupKeys']);
+      const updatedKeys = backupKeys.filter(key => key !== backupKey);
+      await chrome.storage.sync.set({ backupKeys: updatedKeys });
+
+      this.showMessage('Backup deleted successfully', 'success');
+      // Refresh the list
+      await this.refreshLocalBackups();
+    } catch (error) {
+      this.showMessage('Failed to delete backup: ' + error.message, 'error');
+    }
+  }
+
+  async clearOldBackups() {
+    const confirmed = confirm('⚠️ CLEAR OLD BACKUPS\n\nThis will delete all stored local backups except the most recent one.\n\nThis action cannot be undone. Proceed?');
+    if (!confirmed) return;
+
+    try {
+      const btn = this.elements.clearOldBackups;
+      if (btn) {
+        btn.disabled = true;
+        btn.textContent = 'Clearing...';
+      }
+
+      const { backupKeys = [] } = await chrome.storage.sync.get(['backupKeys']);
+      if (backupKeys.length <= 1) {
+        this.showMessage('No old backups to clear', 'info');
+        return;
+      }
+
+      // Keep only the most recent backup (last in array)
+      const keysToDelete = backupKeys.slice(0, -1);
+      const latestKey = backupKeys[backupKeys.length - 1];
+
+      // Delete old backup data
+      await chrome.storage.local.remove(keysToDelete);
+
+      // Update backup keys list to only include the latest
+      await chrome.storage.sync.set({ backupKeys: [latestKey] });
+
+      this.showMessage(`Cleared ${keysToDelete.length} old backup(s)`, 'success');
+      // Refresh the list
+      await this.refreshLocalBackups();
+    } catch (error) {
+      this.showMessage('Failed to clear old backups: ' + error.message, 'error');
+    } finally {
+      const btn = this.elements.clearOldBackups;
+      if (btn) {
+        btn.disabled = false;
+        btn.textContent = 'Clear Old Backups';
+      }
+    }
+  }
+
+  // Duplicates tab functions
+  async scanDuplicatesInTab() {
+    try {
+      const btn = this.elements.scanDuplicatesTab;
+      if (btn) {
+        btn.disabled = true;
+        btn.textContent = 'Scanning...';
+      }
+
+      // Update status
+      if (this.elements.duplicateStatusText) {
+        this.elements.duplicateStatusText.textContent = 'Scanning bookmarks for duplicates...';
+      }
+
+      // Get all bookmarks to analyze
+      const bookmarkTree = await chrome.bookmarks.getTree();
+
+      // Find duplicate bookmarks and folders
+      const duplicateBookmarks = this.findDuplicateBookmarks(bookmarkTree);
+      const duplicateFolders = this.findDuplicateFolders(bookmarkTree);
+
+      // Store results for later use
+      this.duplicateAnalysisTab = {
+        bookmarks: duplicateBookmarks,
+        folders: duplicateFolders,
+        scanned: Date.now()
+      };
+
+      // Display results
+      this.displayDuplicateResultsInTab(duplicateBookmarks, duplicateFolders);
+
+      // Update status
+      if (this.elements.duplicateStatusText) {
+        this.elements.duplicateStatusText.textContent = `Scan completed: ${duplicateBookmarks.length} duplicate bookmark groups, ${duplicateFolders.length} duplicate folder groups found`;
+      }
+
+      // Enable auto-fix button if duplicates found
+      if (this.elements.autoFixDuplicates) {
+        this.elements.autoFixDuplicates.disabled = (duplicateBookmarks.length === 0 && duplicateFolders.length === 0);
+      }
+
+    } catch (error) {
+      console.error('Duplicate scan failed:', error);
+      if (this.elements.duplicateStatusText) {
+        this.elements.duplicateStatusText.textContent = 'Scan failed: ' + error.message;
+      }
+    } finally {
+      const btn = this.elements.scanDuplicatesTab;
+      if (btn) {
+        btn.disabled = false;
+        btn.textContent = 'Scan for Duplicates';
+      }
+    }
+  }
+
+  displayDuplicateResultsInTab(duplicateBookmarks, duplicateFolders) {
+    // Show results container
+    if (this.elements.duplicateResultsTab) {
+      this.elements.duplicateResultsTab.style.display = 'block';
+    }
+
+    // Update counts
+    if (this.elements.duplicateBookmarkCount) {
+      this.elements.duplicateBookmarkCount.textContent = duplicateBookmarks.length;
+    }
+    if (this.elements.duplicateFolderCount) {
+      this.elements.duplicateFolderCount.textContent = duplicateFolders.length;
+    }
+
+    // Display duplicate bookmarks
+    if (this.elements.duplicateBookmarksList) {
+      if (duplicateBookmarks.length === 0) {
+        this.elements.duplicateBookmarksList.innerHTML = '<div style="padding: 12px; text-align: center; color: #6c757d;">No duplicate bookmarks found</div>';
+      } else {
+        const bookmarkHtml = duplicateBookmarks.map(group => {
+          const itemsHtml = group.bookmarks.map((bookmark, index) => `
+            <div class="duplicate-item">
+              <input type="checkbox" data-type="bookmark" data-id="${bookmark.id}" ${index > 0 ? 'checked' : ''}>
+              <div style="flex: 1;">
+                <div style="font-weight: 500;">${this.escapeHtml(bookmark.title)}</div>
+                <div class="duplicate-url">${this.escapeHtml(bookmark.url)}</div>
+                <div class="duplicate-location">📁 ${this.escapeHtml(this.getBookmarkPath(bookmark))}</div>
+              </div>
+              ${index === 0 ? '<span style="color: #28a745; font-size: 12px;">KEEP</span>' : '<span style="color: #dc3545; font-size: 12px;">REMOVE</span>'}
+            </div>
+          `).join('');
+
+          return `
+            <div class="duplicate-group">
+              <div style="font-weight: 600; margin-bottom: 8px;">📄 ${group.bookmarks.length} duplicates of "${this.escapeHtml(group.bookmarks[0].title)}"</div>
+              ${itemsHtml}
+            </div>
+          `;
+        }).join('');
+
+        this.elements.duplicateBookmarksList.innerHTML = bookmarkHtml;
+      }
+    }
+
+    // Display duplicate folders
+    if (this.elements.duplicateFoldersList) {
+      if (duplicateFolders.length === 0) {
+        this.elements.duplicateFoldersList.innerHTML = '<div style="padding: 12px; text-align: center; color: #6c757d;">No duplicate folders found</div>';
+      } else {
+        const folderHtml = duplicateFolders.map(group => {
+          const itemsHtml = group.folders.map((folder, index) => `
+            <div class="duplicate-item">
+              <input type="checkbox" data-type="folder" data-id="${folder.id}" ${index > 0 ? 'checked' : ''}>
+              <div style="flex: 1;">
+                <div style="font-weight: 500;">📁 ${this.escapeHtml(folder.title)}</div>
+                <div class="duplicate-location">📁 ${this.escapeHtml(this.getBookmarkPath(folder))}</div>
+              </div>
+              ${index === 0 ? '<span style="color: #28a745; font-size: 12px;">KEEP</span>' : '<span style="color: #dc3545; font-size: 12px;">MERGE</span>'}
+            </div>
+          `).join('');
+
+          return `
+            <div class="duplicate-group">
+              <div style="font-weight: 600; margin-bottom: 8px;">📁 ${group.folders.length} duplicates of "${this.escapeHtml(group.folders[0].title)}"</div>
+              ${itemsHtml}
+            </div>
+          `;
+        }).join('');
+
+        this.elements.duplicateFoldersList.innerHTML = folderHtml;
+      }
+    }
+
+    // Update remove button state
+    this.updateRemoveButtonState();
+  }
+
+  getBookmarkPath(bookmark) {
+    // Get the path of a bookmark for display
+    try {
+      if (bookmark.parentId === '1') return 'Bookmarks Bar';
+      if (bookmark.parentId === '2') return 'Other Bookmarks';
+      if (bookmark.parentId === '3') return 'Mobile Bookmarks';
+      return 'Unknown Location';
+    } catch (error) {
+      return 'Unknown Location';
+    }
+  }
+
+  escapeHtml(text) {
+    const div = document.createElement('div');
+    div.textContent = text;
+    return div.innerHTML;
+  }
+
+  updateRemoveButtonState() {
+    const checkboxes = document.querySelectorAll('#duplicateResultsTab input[type="checkbox"]:checked');
+    if (this.elements.removeSelectedDuplicates) {
+      this.elements.removeSelectedDuplicates.disabled = checkboxes.length === 0;
+    }
+  }
+
+  selectAllDuplicates() {
+    const checkboxes = document.querySelectorAll('#duplicateResultsTab input[type="checkbox"]');
+    checkboxes.forEach(cb => cb.checked = true);
+    this.updateRemoveButtonState();
+  }
+
+  selectNoneDuplicates() {
+    const checkboxes = document.querySelectorAll('#duplicateResultsTab input[type="checkbox"]');
+    checkboxes.forEach(cb => cb.checked = false);
+    this.updateRemoveButtonState();
+  }
+
+  async autoFixAllDuplicates() {
+    if (!this.duplicateAnalysisTab) {
+      this.showMessage('Please scan for duplicates first', 'error');
+      return;
+    }
+
+    const confirmed = confirm('⚠️ AUTO-FIX ALL DUPLICATES\n\nThis will automatically remove all duplicate bookmarks and merge duplicate folders.\n\nA backup will be created automatically. Proceed?');
+    if (!confirmed) return;
+
+    try {
+      const btn = this.elements.autoFixDuplicates;
+      if (btn) {
+        btn.disabled = true;
+        btn.textContent = 'Fixing...';
+      }
+
+      // Create backup if enabled
+      if (this.elements.createBackupBeforeRemoval?.checked) {
+        await this.createAutoBackup();
+      }
+
+      let removedCount = 0;
+      let mergedCount = 0;
+
+      // Remove duplicate bookmarks
+      for (const group of this.duplicateAnalysisTab.bookmarks) {
+        const toRemove = group.bookmarks.slice(1); // Keep first, remove others
+        for (const bookmark of toRemove) {
+          try {
+            await chrome.bookmarks.remove(bookmark.id);
+            removedCount++;
+          } catch (error) {
+            console.warn('Failed to remove duplicate bookmark:', bookmark, error);
+          }
+        }
+      }
+
+      // Merge duplicate folders
+      for (const group of this.duplicateAnalysisTab.folders) {
+        const keepFolder = group.folders[0];
+        const mergeFolders = group.folders.slice(1);
+
+        for (const folder of mergeFolders) {
+          try {
+            // Move all children from duplicate folder to keep folder
+            const children = await chrome.bookmarks.getChildren(folder.id);
+            for (const child of children) {
+              await chrome.bookmarks.move(child.id, { parentId: keepFolder.id });
+            }
+            // Remove the now-empty folder
+            await chrome.bookmarks.removeTree(folder.id);
+            mergedCount++;
+          } catch (error) {
+            console.warn('Failed to merge duplicate folder:', folder, error);
+          }
+        }
+      }
+
+      this.showMessage(`Auto-fix completed: ${removedCount} bookmarks removed, ${mergedCount} folders merged`, 'success');
+
+      // Refresh the view
+      await this.refreshDuplicateView();
+
+    } catch (error) {
+      this.showMessage('Auto-fix failed: ' + error.message, 'error');
+    } finally {
+      const btn = this.elements.autoFixDuplicates;
+      if (btn) {
+        btn.disabled = false;
+        btn.textContent = 'Auto-Fix All Duplicates';
+      }
+    }
+  }
+
+  async removeSelectedDuplicates() {
+    const checkboxes = document.querySelectorAll('#duplicateResultsTab input[type="checkbox"]:checked');
+    if (checkboxes.length === 0) {
+      this.showMessage('No duplicates selected', 'error');
+      return;
+    }
+
+    const confirmed = confirm(`⚠️ REMOVE SELECTED DUPLICATES\n\nThis will remove ${checkboxes.length} selected duplicate items.\n\nThis action cannot be undone. Proceed?`);
+    if (!confirmed) return;
+
+    try {
+      const btn = this.elements.removeSelectedDuplicates;
+      if (btn) {
+        btn.disabled = true;
+        btn.textContent = 'Removing...';
+      }
+
+      // Create backup if enabled
+      if (this.elements.createBackupBeforeRemoval?.checked) {
+        await this.createAutoBackup();
+      }
+
+      let removedCount = 0;
+
+      for (const checkbox of checkboxes) {
+        const itemId = checkbox.dataset.id;
+        const itemType = checkbox.dataset.type;
+
+        try {
+          if (itemType === 'bookmark') {
+            await chrome.bookmarks.remove(itemId);
+          } else if (itemType === 'folder') {
+            await chrome.bookmarks.removeTree(itemId);
+          }
+          removedCount++;
+        } catch (error) {
+          console.warn('Failed to remove item:', itemId, error);
+        }
+      }
+
+      this.showMessage(`Removed ${removedCount} duplicate items`, 'success');
+
+      // Refresh the view
+      await this.refreshDuplicateView();
+
+    } catch (error) {
+      this.showMessage('Remove failed: ' + error.message, 'error');
+    } finally {
+      const btn = this.elements.removeSelectedDuplicates;
+      if (btn) {
+        btn.disabled = false;
+        btn.textContent = 'Remove Selected';
+      }
+    }
+  }
+
+  async refreshDuplicateView() {
+    // Clear current results
+    this.duplicateAnalysisTab = null;
+
+    if (this.elements.duplicateResultsTab) {
+      this.elements.duplicateResultsTab.style.display = 'none';
+    }
+
+    if (this.elements.duplicateStatusText) {
+      this.elements.duplicateStatusText.textContent = 'Click "Scan for Duplicates" to analyze your bookmarks';
+    }
+
+    if (this.elements.autoFixDuplicates) {
+      this.elements.autoFixDuplicates.disabled = true;
+    }
+  }
+
+  // Mandatory backup system - ensures user has downloaded a backup before using features
+  async checkMandatoryBackup() {
+    try {
+      // Check if user has already downloaded the mandatory backup
+      const { mandatoryBackupDownloaded, mandatoryBackupCreated } = await chrome.storage.sync.get(['mandatoryBackupDownloaded', 'mandatoryBackupCreated']);
+
+      if (mandatoryBackupDownloaded) {
+        // User has already downloaded backup, enable all features
+        this.enableAllFeatures();
+        return;
+      }
+
+      // Create mandatory backup if not created yet
+      if (!mandatoryBackupCreated) {
+        await this.createMandatoryBackup();
+      }
+
+      // Disable all features until backup is downloaded
+      this.disableAllFeatures();
+      this.showMandatoryBackupNotice();
+
+    } catch (error) {
+      console.error('Mandatory backup check failed:', error);
+      // On error, still show backup notice for safety
+      this.disableAllFeatures();
+      this.showMandatoryBackupNotice();
+    }
+  }
+
+  async createMandatoryBackup() {
+    try {
+      console.log('Creating mandatory startup backup...');
+
+      const bookmarkTree = await chrome.bookmarks.getTree();
+      const timestamp = new Date().toISOString();
+      const backupData = {
+        version: '1.2.0',
+        timestamp: timestamp,
+        type: 'mandatory-startup',
+        bookmarks: bookmarkTree
+      };
+
+      // Store in local storage
+      const backupKey = `mandatory_backup_${timestamp.replace(/[:.]/g, '-')}`;
+      await chrome.storage.local.set({ [backupKey]: backupData });
+
+      // Mark as created
+      await chrome.storage.sync.set({
+        mandatoryBackupCreated: true,
+        mandatoryBackupKey: backupKey,
+        mandatoryBackupTimestamp: timestamp
+      });
+
+      console.log('Mandatory backup created successfully');
+
+    } catch (error) {
+      console.error('Failed to create mandatory backup:', error);
+      throw error;
+    }
+  }
+
+  disableAllFeatures() {
+    // Disable all critical buttons and inputs
+    const criticalSelectors = [
+      'button[id*="sync"]',
+      'button[id*="Sync"]',
+      'button[id*="duplicate"]',
+      'button[id*="Duplicate"]',
+      'button[id*="clear"]',
+      'button[id*="Clear"]',
+      'button[id*="remove"]',
+      'button[id*="Remove"]',
+      'button[id*="delete"]',
+      'button[id*="Delete"]',
+      'button[id*="import"]',
+      'button[id*="Import"]',
+      'button[id*="merge"]',
+      'button[id*="Merge"]',
+      'button[id*="cleanup"]',
+      'button[id*="Cleanup"]',
+      'button[id*="emergency"]',
+      'button[id*="Emergency"]',
+      '#authenticateBtn',
+      '#exportBookmarks'
+    ];
+
+    criticalSelectors.forEach(selector => {
+      document.querySelectorAll(selector).forEach(element => {
+        element.disabled = true;
+        element.style.opacity = '0.5';
+        element.title = 'Please download mandatory backup first';
+      });
+    });
+
+    // Disable navigation to danger zones
+    document.querySelectorAll('[data-tab="danger"], [data-tab="duplicates"], [data-tab="sync"]').forEach(element => {
+      element.disabled = true;
+      element.style.opacity = '0.5';
+    });
+
+    console.log('All features disabled until mandatory backup download');
+  }
+
+  enableAllFeatures() {
+    // Re-enable all previously disabled elements
+    document.querySelectorAll('button[disabled], a[disabled], input[disabled]').forEach(element => {
+      if (element.title === 'Please download mandatory backup first') {
+        element.disabled = false;
+        element.style.opacity = '';
+        element.title = '';
+      }
+    });
+
+    document.querySelectorAll('[data-tab]').forEach(element => {
+      element.disabled = false;
+      element.style.opacity = '';
+    });
+
+    console.log('All features enabled - backup downloaded');
+  }
+
+  showMandatoryBackupNotice() {
+    // Create and show mandatory backup notice
+    const existingNotice = document.getElementById('mandatoryBackupNotice');
+    if (existingNotice) {
+      existingNotice.remove();
+    }
+
+    const notice = document.createElement('div');
+    notice.id = 'mandatoryBackupNotice';
+    notice.style.cssText = `
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background: rgba(0, 0, 0, 0.8);
+      z-index: 9999;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    `;
+
+    notice.innerHTML = `
+      <div style="background: white; padding: 32px; border-radius: 12px; max-width: 500px; text-align: center; box-shadow: 0 8px 32px rgba(0,0,0,0.3);">
+        <h2 style="color: #dc3545; margin: 0 0 16px 0;">🛡️ Mandatory Backup Required</h2>
+        <p style="margin: 0 0 20px 0; line-height: 1.6;">
+          <strong>For your safety, a backup of your bookmarks has been created automatically.</strong><br><br>
+          You must download this backup to your computer before using any features of this extension.<br><br>
+          This ensures you can always restore your bookmarks if something goes wrong.
+        </p>
+        <button id="downloadMandatoryBackup" class="button" style="background: #dc3545; color: white; margin-right: 12px;">
+          📥 Download Backup Now
+        </button>
+        <div style="margin-top: 16px; font-size: 14px; color: #6c757d;">
+          ⚠️ All extension features are disabled until backup is downloaded
+        </div>
+        <div style="margin-top: 12px;">
+          <button id="resetBackupRequirement" style="background: none; border: none; color: #6c757d; font-size: 12px; text-decoration: underline; cursor: pointer;">
+            [Debug] Reset backup requirement
+          </button>
+        </div>
+      </div>
+    `;
+
+    document.body.appendChild(notice);
+
+    // Add download handler
+    document.getElementById('downloadMandatoryBackup').addEventListener('click', () => {
+      this.downloadMandatoryBackup();
+    });
+
+    // Add debug reset handler
+    document.getElementById('resetBackupRequirement').addEventListener('click', () => {
+      this.resetBackupRequirement();
+    });
+  }
+
+  async downloadMandatoryBackup() {
+    try {
+      const { mandatoryBackupKey } = await chrome.storage.sync.get(['mandatoryBackupKey']);
+
+      if (!mandatoryBackupKey) {
+        throw new Error('Mandatory backup not found');
+      }
+
+      const data = await chrome.storage.local.get([mandatoryBackupKey]);
+      if (!data[mandatoryBackupKey]) {
+        throw new Error('Backup data not found');
+      }
+
+      const backupData = data[mandatoryBackupKey];
+      const blob = new Blob([JSON.stringify(backupData, null, 2)], { type: 'application/json' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `MANDATORY-BACKUP-${backupData.timestamp.replace(/[:.]/g, '-')}.json`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+
+      // Mark as downloaded
+      await chrome.storage.sync.set({ mandatoryBackupDownloaded: true });
+
+      // Remove notice and enable features
+      const notice = document.getElementById('mandatoryBackupNotice');
+      if (notice) {
+        notice.remove();
+      }
+
+      this.enableAllFeatures();
+      this.showMessage('✅ Mandatory backup downloaded! All features are now enabled.', 'success');
+
+    } catch (error) {
+      console.error('Failed to download mandatory backup:', error);
+      this.showMessage('Failed to download backup: ' + error.message, 'error');
+    }
+  }
+
+  async resetBackupRequirement() {
+    // Debug function to reset backup requirement
+    const confirmed = confirm('⚠️ DEBUG: Reset backup requirement?\n\nThis will clear the backup requirement and enable all features without downloading.\n\nOnly use for testing!');
+    if (!confirmed) return;
+
+    try {
+      await chrome.storage.sync.remove(['mandatoryBackupDownloaded', 'mandatoryBackupCreated', 'mandatoryBackupKey', 'mandatoryBackupTimestamp']);
+
+      const notice = document.getElementById('mandatoryBackupNotice');
+      if (notice) {
+        notice.remove();
+      }
+
+      this.enableAllFeatures();
+      this.showMessage('🔧 DEBUG: Backup requirement reset. All features enabled.', 'info');
+
+    } catch (error) {
+      console.error('Failed to reset backup requirement:', error);
+      this.showMessage('Failed to reset: ' + error.message, 'error');
+    }
+  }
+
+  applyNotificationStyle() {
+    const isModern = this.elements.modernNotification?.checked;
+    const isMinimal = this.elements.minimalNotification?.checked;
+
+    if (isModern) {
+      // Show modern, hide minimal
+      if (this.elements.betaNotificationBar) {
+        this.elements.betaNotificationBar.style.display = 'flex';
+      }
+      if (this.elements.betaNotificationBarAlt) {
+        this.elements.betaNotificationBarAlt.style.display = 'none';
+      }
+      chrome.storage.sync.set({ notificationStyle: 'modern' });
+      this.showMessage('Modern notification style applied', 'success');
+    } else if (isMinimal) {
+      // Show minimal, hide modern
+      if (this.elements.betaNotificationBar) {
+        this.elements.betaNotificationBar.style.display = 'none';
+      }
+      if (this.elements.betaNotificationBarAlt) {
+        this.elements.betaNotificationBarAlt.style.display = 'flex';
+      }
+      chrome.storage.sync.set({ notificationStyle: 'minimal' });
+      this.showMessage('Minimal notification style applied', 'success');
+    }
+
+    // Remove hidden class if notification is shown again
+    document.body.classList.remove('notification-hidden');
+
+    // Update layout offset based on current bar
+    this.updateNotificationOffset();
+  }
+
+  async previewNotificationStyle() {
+    const isModern = this.elements.modernNotification?.checked;
+
+    // Temporarily show the selected style for 3 seconds
+    if (isModern) {
+      if (this.elements.betaNotificationBar) {
+        this.elements.betaNotificationBar.style.display = 'flex';
+        this.updateNotificationOffset();
+        setTimeout(() => {
+          if (this.elements.betaNotificationBar) {
+            this.elements.betaNotificationBar.style.display = 'none';
+          }
+          this.updateNotificationOffset();
+        }, 3000);
+      }
+    } else {
+      if (this.elements.betaNotificationBarAlt) {
+        this.elements.betaNotificationBarAlt.style.display = 'flex';
+        this.updateNotificationOffset();
+        setTimeout(() => {
+          if (this.elements.betaNotificationBarAlt) {
+            this.elements.betaNotificationBarAlt.style.display = 'none';
+          }
+          this.updateNotificationOffset();
+        }, 3000);
+      }
+    }
+
+    this.showMessage('Preview shown for 3 seconds', 'info');
+  }
+
+  async loadNotificationStyle() {
+    try {
+      const { notificationStyle = 'modern' } = await chrome.storage.sync.get(['notificationStyle']);
+
+      if (notificationStyle === 'minimal') {
+        if (this.elements.minimalNotification) {
+          this.elements.minimalNotification.checked = true;
+        }
+        if (this.elements.betaNotificationBar) {
+          this.elements.betaNotificationBar.style.display = 'none';
+        }
+        if (this.elements.betaNotificationBarAlt) {
+          this.elements.betaNotificationBarAlt.style.display = 'flex';
+        }
+      } else {
+        if (this.elements.modernNotification) {
+          this.elements.modernNotification.checked = true;
+        }
+        if (this.elements.betaNotificationBar) {
+          this.elements.betaNotificationBar.style.display = 'flex';
+        }
+        if (this.elements.betaNotificationBarAlt) {
+          this.elements.betaNotificationBarAlt.style.display = 'none';
+        }
+      }
+
+      // Ensure layout reflects the current notification
+      this.updateNotificationOffset();
+    } catch (error) {
+      console.warn('Failed to load notification style preference:', error);
+    }
+  }
+
+  // --- Theme selection ---
+  applyTheme() {
+    const theme = this.elements.themeSelect?.value || 'default';
+    document.documentElement.setAttribute('data-theme', theme);
+    chrome.storage.sync.set({ colorTheme: theme }).catch(() => {});
+    this.updateThemePreview();
+    this.showMessage(`Theme applied: ${theme}`, 'success');
+  }
+
+  async loadTheme() {
+    try {
+      const { colorTheme = 'default' } = await chrome.storage.sync.get(['colorTheme']);
+      document.documentElement.setAttribute('data-theme', colorTheme);
+      if (this.elements.themeSelect) this.elements.themeSelect.value = colorTheme;
+      this.updateThemePreview();
+    } catch (_) {
+      // ignore
+    }
+  }
+
+  updateThemePreview() {
+    const el = this.elements.themePreview; if (!el) return;
+    const id = this.elements.themeSelect?.value || 'default';
+    const palettes = {
+      default: ['#007cba', '#006ba3', '#005a87'],
+      gold: ['#DBDBDB','#F0A500','#CF7500','#000000'],
+      fire: ['#FF6107','#E9290F','#C40018','#292725'],
+      purpleIndigo: ['#4B49AC','#98BDFF','#7DA0FA','#7978E9','#F3797E'],
+      lunaBlue: ['#A7EBF2','#54ACBF','#26658C','#023859','#011C40'],
+      roseTwilight: ['#C38EB4','#E1CBD7','#66A8CF','#26425A','#262C47'],
+      dustyRose: ['#765D67','#6D3C52','#4B2138','#1B0C1A','#2D222F','#FADCD5'],
+      pastelOcean: ['#E9A27C','#E7B8A6','#8CBEBC','#0E8992','#0D313A']
+    };
+    const arr = palettes[id] || palettes.default;
+    el.innerHTML = arr.map(c => `<span style="display:inline-block;width:14px;height:14px;border-radius:50%;background:${c};border:1px solid rgba(0,0,0,0.15);"></span>`).join('');
+  }
+
+  // Color mode (dark/light)
+  async loadColorMode() {
+    try {
+      const { colorMode = 'light' } = await chrome.storage.sync.get(['colorMode']);
+      const isDark = colorMode === 'dark';
+      document.documentElement.setAttribute('data-color-mode', isDark ? 'dark' : 'light');
+      if (this.elements.darkModeToggle) this.elements.darkModeToggle.checked = isDark;
+    } catch (_) {}
+  }
+
+  toggleColorMode() {
+    const isDark = !!this.elements.darkModeToggle?.checked;
+    document.documentElement.setAttribute('data-color-mode', isDark ? 'dark' : 'light');
+    chrome.storage.sync.set({ colorMode: isDark ? 'dark' : 'light' }).catch(() => {});
+  }
+
+  // (removed) Auto-confirm handling was removed as per request.
+
+  // --- Notification offset helpers ---
+  setNotificationHeight(px) {
+    const h = Math.max(0, Math.round(px || 0));
+    document.documentElement.style.setProperty('--notification-h', `${h}px`);
+  }
+
+  updateNotificationOffset() {
+    // Decide which bar is visible and measure its height
+    const bars = [this.elements.betaNotificationBar, this.elements.betaNotificationBarAlt].filter(Boolean);
+    let height = 0;
+    for (const bar of bars) {
+      if (!bar) continue;
+      const style = window.getComputedStyle(bar);
+      if (style.display !== 'none' && style.visibility !== 'hidden') {
+        const rect = bar.getBoundingClientRect();
+        height = Math.max(height, rect.height);
+      }
+    }
+    this.setNotificationHeight(height);
+  }
 }
 
 document.addEventListener('DOMContentLoaded', () => {
   const app = new OptionsManager();
   window.optionsManager = app; // Global reference for fallback buttons
+  window.optionsApp = app; // Global reference for local backup functions
   try { app.openRoadmapLink?.(); } catch (_) {}
 });

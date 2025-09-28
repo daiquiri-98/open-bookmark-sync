@@ -11,6 +11,7 @@ class RaindropSync {
     this.DEFAULT_TWO_WAY_MODE = 'additions_only'; // additions_only | mirror | off
     this.RATE_LIMIT_RPM_DEFAULT = 60; // conservative default; backoff handles 429s
     this._lastRequestAt = 0;
+    this._syncInProgress = false; // Add sync mutex
   }
 
   async initialize() {
@@ -41,6 +42,14 @@ class RaindropSync {
   }
 
   async syncBookmarks() {
+    // Prevent concurrent syncs
+    if (this._syncInProgress) {
+      console.log('Sync already in progress, skipping...');
+      return;
+    }
+
+    this._syncInProgress = true;
+
     try {
       console.log('Starting Raindrop sync...');
 
@@ -123,6 +132,9 @@ class RaindropSync {
       if (error.message && error.message.includes('401')) {
         await chrome.storage.sync.remove(['accessToken', 'refreshToken']);
       }
+    } finally {
+      // Always release sync lock
+      this._syncInProgress = false;
     }
   }
 
@@ -219,8 +231,17 @@ class RaindropSync {
         const childItems = childData.items || [];
         console.log(`Fetched ${items.length} root collections and ${childItems.length} child collections`);
 
-        // Merge root and child collections
-        items = [...items, ...childItems];
+        // Merge root and child collections, removing duplicates
+        const mergedItems = [...items, ...childItems];
+        // Remove duplicates based on collection ID
+        const uniqueItems = new Map();
+        mergedItems.forEach(item => {
+          if (item && item._id) {
+            uniqueItems.set(item._id, item);
+          }
+        });
+        items = Array.from(uniqueItems.values());
+        console.log(`After deduplication: ${items.length} unique collections`);
       } else {
         console.warn('Failed to load child collections:', childResponse.status);
       }
@@ -320,7 +341,7 @@ class RaindropSync {
     const { accessToken } = await chrome.storage.sync.get(['accessToken']);
 
     let page = 0;
-    const perPage = 50;
+    const perPage = 100; // Increased from 50 to 100 for faster loading
     let items = [];
     let total = Infinity;
     while (page * perPage < total) {
@@ -378,16 +399,19 @@ class RaindropSync {
       let raindrops = await this.fetchRaindrops(collection._id);
       raindrops = this.sortRaindrops(raindrops, bookmarksSort);
 
-      // Add each raindrop as a bookmark
-      for (const raindrop of raindrops) {
-        if (raindrop.link) {
-          await chrome.bookmarks.create({
+      // Add all raindrops as bookmarks in parallel for faster loading
+      const bookmarkPromises = raindrops
+        .filter(raindrop => raindrop.link)
+        .map(raindrop =>
+          chrome.bookmarks.create({
             parentId: folder.id,
             title: raindrop.title || raindrop.link,
             url: raindrop.link
-          });
-        }
-      }
+          })
+        );
+
+      // Wait for all bookmarks to be created in parallel
+      await Promise.all(bookmarkPromises);
 
     } catch (error) {
       console.error(`Failed to create folder for collection ${collection.title}:`, error);
@@ -448,9 +472,18 @@ class RaindropSync {
 
       // Process each collection with hierarchy support
       const createdFolders = new Map(); // Track created folders by collection ID
+      const processedCollections = new Set(); // Track processed collections to prevent duplicates
+      console.log(`Processing ${collections.length} collections:`, collections.map(c => `${c.title} (${c._id})`));
 
       for (const collection of collections) {
         if (collection._id < 0) continue; // skip system collections
+
+        // Skip if we've already processed this collection
+        if (processedCollections.has(collection._id)) {
+          console.log(`Skipping duplicate collection: ${collection.title} (${collection._id})`);
+          continue;
+        }
+        processedCollections.add(collection._id);
 
         // Determine parent folder ID based on hierarchy
         let parentFolderId = rootFolderId;
@@ -469,10 +502,27 @@ class RaindropSync {
             const [mappedFolder] = await chrome.bookmarks.get(mappedFolderId);
             if (mappedFolder && !mappedFolder.url) {
               folder = mappedFolder;
+              console.log(`Found folder via mapping: ${collection.title} -> ${folder.title} (${folder.id})`);
             }
           } catch (e) {
             // Mapped folder doesn't exist anymore, clean up mapping
             delete folderMap[String(collection._id)];
+            console.log(`Cleaned up stale mapping for collection ${collection._id}`);
+          }
+        }
+
+        // Fallback: Check if we already created this folder in this sync session
+        if (!folder && createdFolders.has(collection._id)) {
+          const folderId = createdFolders.get(collection._id);
+          try {
+            const [existingFolder] = await chrome.bookmarks.get(folderId);
+            if (existingFolder && !existingFolder.url) {
+              folder = existingFolder;
+              console.log(`Found folder from current sync session: ${collection.title} -> ${folder.title} (${folder.id})`);
+            }
+          } catch (e) {
+            // Folder was deleted, remove from tracking
+            createdFolders.delete(collection._id);
           }
         }
 
@@ -482,11 +532,13 @@ class RaindropSync {
             // Do not create local folders in upload-only mode
             continue;
           }
+          console.log(`Creating new folder: ${collection.title} in parent ${parentFolderId}`);
           folder = await chrome.bookmarks.create({
             parentId: parentFolderId,
             title: collection.title
           });
           foldersByTitle.set(collection.title, folder);
+          console.log(`Created folder: ${folder.title} (${folder.id})`);
         }
 
         // Map collection to folder for future reference
@@ -557,6 +609,10 @@ class RaindropSync {
 
     // 2) Ensure every remote raindrop exists locally (create/update)
     if (mode !== 'upload_only') {
+      // Collect all bookmarks that need to be created for batch processing
+      const bookmarksToCreate = [];
+      const titleUpdates = [];
+
       for (const r of remote) {
         const url = r.link || r.url;
         if (!url) continue;
@@ -584,21 +640,107 @@ class RaindropSync {
             b = existingByUrl;
             byUrl.set(url, b);
           } else {
-            // Create locally only if no duplicate exists
-            b = await chrome.bookmarks.create({ parentId: folderId, title: r.title || url, url });
-            byUrl.set(url, b);
-            byId.set(b.id, b);
+            // Global duplicate check: Search entire bookmark tree for this URL
+            const globalDuplicates = await this.findBookmarksByUrl(url);
+            if (globalDuplicates.length > 0) {
+              // URL already exists elsewhere, map to existing bookmark to prevent duplicate
+              const existingGlobal = globalDuplicates[0];
+              b = existingGlobal;
+              byUrl.set(url, b);
+              byId.set(b.id, b);
+              // Update mapping to existing bookmark
+              rdMap[String(r._id)] = String(b.id);
+              console.log(`Mapped existing bookmark (${b.id}) to prevent duplicate for URL: ${url}`);
+            } else {
+              // Queue bookmark for batch creation
+              bookmarksToCreate.push({
+                raindrop: r,
+                url: url,
+                title: r.title || url
+              });
+            }
           }
         } else if (mode === 'mirror') {
-          // Update title if changed (mirror mode only)
+          // Queue title update for batch processing (mirror mode only)
           const desiredTitle = r.title || url;
           if (b.title !== desiredTitle) {
-            await chrome.bookmarks.update(b.id, { title: desiredTitle });
+            titleUpdates.push({ id: b.id, title: desiredTitle });
           }
         }
-        rdMap[String(r._id)] = String(b.id);
+        if (!bookmarksToCreate.some(item => item.raindrop === r)) {
+          rdMap[String(r._id)] = String(b.id);
+        }
+      }
+
+      // Batch create all new bookmarks for much faster performance
+      if (bookmarksToCreate.length > 0) {
+        console.log(`Creating ${bookmarksToCreate.length} bookmarks in batch for faster sync`);
+        const createPromises = bookmarksToCreate.map(item =>
+          chrome.bookmarks.create({
+            parentId: folderId,
+            title: item.title,
+            url: item.url
+          })
+        );
+
+        try {
+          const createdBookmarks = await Promise.all(createPromises);
+
+          // Update mappings and local indexes for created bookmarks
+          createdBookmarks.forEach((bookmark, index) => {
+            const item = bookmarksToCreate[index];
+            rdMap[String(item.raindrop._id)] = String(bookmark.id);
+            byUrl.set(item.url, bookmark);
+            byId.set(bookmark.id, bookmark);
+          });
+
+          console.log(`Successfully created ${createdBookmarks.length} bookmarks in batch`);
+        } catch (error) {
+          console.error('Batch bookmark creation failed:', error);
+          // Fall back to individual creation if batch fails
+          for (const item of bookmarksToCreate) {
+            try {
+              const bookmark = await chrome.bookmarks.create({
+                parentId: folderId,
+                title: item.title,
+                url: item.url
+              });
+              rdMap[String(item.raindrop._id)] = String(bookmark.id);
+              byUrl.set(item.url, bookmark);
+              byId.set(bookmark.id, bookmark);
+            } catch (individualError) {
+              console.warn('Failed to create individual bookmark:', item.url, individualError);
+            }
+          }
+        }
+      }
+
+      // Batch update titles for better performance
+      if (titleUpdates.length > 0) {
+        console.log(`Updating ${titleUpdates.length} bookmark titles in batch`);
+        const updatePromises = titleUpdates.map(update =>
+          chrome.bookmarks.update(update.id, { title: update.title })
+        );
+
+        try {
+          await Promise.all(updatePromises);
+          console.log(`Successfully updated ${titleUpdates.length} bookmark titles`);
+        } catch (error) {
+          console.error('Batch title update failed:', error);
+          // Fall back to individual updates if batch fails
+          for (const update of titleUpdates) {
+            try {
+              await chrome.bookmarks.update(update.id, { title: update.title });
+            } catch (individualError) {
+              console.warn('Failed to update individual bookmark title:', update.id, individualError);
+            }
+          }
+        }
       }
     }
+
+    // Additional duplicate prevention: Clean up any unmapped duplicates in this folder
+    await this.cleanupUnmappedDuplicates(folderId, rdMap);
 
     // 3) Local-only bookmarks -> create in Raindrop
     if (mode !== 'off') {
@@ -1002,6 +1144,65 @@ class RaindropSync {
     } catch (error) {
       console.error('Error getting bookmarks in folder:', error);
       return [];
+    }
+  }
+
+  // Find all bookmarks with a specific URL in the entire bookmark tree
+  async findBookmarksByUrl(url) {
+    try {
+      const allBookmarks = await this.getAllBookmarksRecursively();
+      return allBookmarks.filter(bookmark => bookmark.url === url);
+    } catch (error) {
+      console.error('Error finding bookmarks by URL:', error);
+      return [];
+    }
+  }
+
+  // Clean up duplicate bookmarks in a folder that aren't properly mapped
+  async cleanupUnmappedDuplicates(folderId, rdMap) {
+    try {
+      const children = await chrome.bookmarks.getChildren(folderId);
+      const bookmarks = children.filter(c => !!c.url);
+
+      // Group bookmarks by URL
+      const bookmarksByUrl = new Map();
+      for (const bookmark of bookmarks) {
+        if (!bookmarksByUrl.has(bookmark.url)) {
+          bookmarksByUrl.set(bookmark.url, []);
+        }
+        bookmarksByUrl.get(bookmark.url).push(bookmark);
+      }
+
+      // Find and remove unmapped duplicates
+      const mappedBookmarkIds = new Set(Object.values(rdMap));
+      let removedCount = 0;
+
+      for (const [url, duplicates] of bookmarksByUrl) {
+        if (duplicates.length > 1) {
+          // Keep the first mapped bookmark, or the first one if none are mapped
+          const mappedBookmark = duplicates.find(b => mappedBookmarkIds.has(b.id));
+          const keepBookmark = mappedBookmark || duplicates[0];
+
+          // Remove the other duplicates
+          for (const duplicate of duplicates) {
+            if (duplicate.id !== keepBookmark.id) {
+              try {
+                await chrome.bookmarks.remove(duplicate.id);
+                removedCount++;
+                console.log(`Removed unmapped duplicate bookmark: ${duplicate.title} (${duplicate.url})`);
+              } catch (error) {
+                console.warn('Failed to remove duplicate bookmark:', duplicate.id, error);
+              }
+            }
+          }
+        }
+      }
+
+      if (removedCount > 0) {
+        console.log(`Cleaned up ${removedCount} unmapped duplicate bookmarks in folder ${folderId}`);
+      }
+    } catch (error) {
+      console.error('Error cleaning up unmapped duplicates:', error);
     }
   }
 }

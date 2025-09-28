@@ -17,6 +17,7 @@
             --panel-bg: #ffffff;
             --header-h: 72px;
             --sidebar-w: 300px;
+            --notification-h: 0px; /* dynamic notification bar height */
         }
         body {
             font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
@@ -113,12 +114,13 @@
 
         input[type="text"]:focus,
         input[type="url"]:focus,
-        input[type="password"]:focus,
-        select:focus {
+        input[type="password"]:focus {
             outline: none;
             border-color: #5F7FFF;
             box-shadow: none;
         }
+        /* Keep select focus neutral (no bright accent) */
+        select:focus { outline: none; border-color: #d7dbe2; box-shadow: none; }
 
         .button {
             background-color: #007cba;
@@ -401,7 +403,13 @@
             box-shadow: none;
             padding: 0;
             min-height: 100vh;
-            /* push content below fixed header */
+            /* push content below fixed header and beta notification */
+            padding-top: calc(var(--header-h) + var(--notification-h));
+            transition: padding-top 0.35s ease;
+        }
+
+        /* When notification is hidden, adjust padding */
+        body.notification-hidden .container {
             padding-top: var(--header-h);
         }
         body.layout-sidebar .header {
@@ -409,9 +417,10 @@
             border-bottom: 1px solid #e9ecef;
             background: #fff;
             display:flex; align-items:center; justify-content: space-between;
-            position: fixed; top: 0; left: 0; right: 0; z-index: 200;
+            position: fixed; top: var(--notification-h); left: 0; right: 0; z-index: 200;
             height: var(--header-h);
             box-sizing: border-box;
+            transition: top 0.35s ease;
         }
         body.layout-sidebar .main { display: block; }
         body.layout-sidebar .sidebar {
@@ -421,7 +430,7 @@
             border-right: 1px solid #e9ecef;
             padding: 24px 16px; /* restore comfortable inner padding */
             box-sizing: border-box; /* keep total width equal to --sidebar-w */
-            position: fixed; top: var(--header-h); left: 0; bottom: 0;
+            position: fixed; top: calc(var(--header-h) + var(--notification-h)); left: 0; bottom: 0;
             overflow-y: auto; /* scrolls within available viewport */
         }
         body.layout-sidebar .main-content {
@@ -434,7 +443,7 @@
             overflow: auto; /* scrolls content, keeps header & sidebar fixed */
             overflow-x: hidden; /* guard against tiny rounding overflow */
             box-sizing: border-box;
-            height: calc(100vh - var(--header-h));
+            height: calc(100vh - var(--header-h) - var(--notification-h));
         }
         body.layout-sidebar .tabs { display: none; }
         body.layout-sidebar .tab-content .section { margin: 0 0 12px 0; }
@@ -464,6 +473,54 @@
             opacity: 1;
         }
 
+        /* Duplicate management styles */
+        .badge {
+            background: #007bff;
+            color: white;
+            padding: 2px 6px;
+            border-radius: 10px;
+            font-size: 12px;
+            font-weight: 600;
+            margin-left: 8px;
+        }
+        .duplicate-list {
+            max-height: 400px;
+            overflow-y: auto;
+            border: 1px solid #e9ecef;
+            border-radius: 6px;
+            background: #fff;
+        }
+        .duplicate-group {
+            border-bottom: 1px solid #e9ecef;
+            padding: 12px;
+        }
+        .duplicate-group:last-child {
+            border-bottom: none;
+        }
+        .duplicate-item {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            padding: 6px 0;
+            border-bottom: 1px solid #f1f3f5;
+        }
+        .duplicate-item:last-child {
+            border-bottom: none;
+        }
+        .duplicate-item input[type="checkbox"] {
+            margin: 0;
+        }
+        .duplicate-url {
+            font-size: 12px;
+            color: #6c757d;
+            margin-top: 2px;
+        }
+        .duplicate-location {
+            font-size: 11px;
+            color: #999;
+            margin-top: 2px;
+        }
+
         /* Children container styling */
         .collection-children {
             transition: all 0.3s ease;
@@ -488,7 +545,7 @@
             width: 16px;
             height: 16px;
             border: 2px solid #f3f3f3;
-            border-top: 2px solid #007cba;
+            border-top: 2px solid var(--btn-primary-bg, var(--accent));
             border-radius: 50%;
             animation: spin 1s linear infinite;
             margin-right: 8px;
@@ -638,6 +695,31 @@
             justify-content: flex-start;
         }
 
+        /* Theme-driven button overrides (global) */
+        .button {
+            background-color: var(--btn-normal-bg) !important;
+            color: var(--btn-normal-fg, #111) !important;
+            border: 1px solid var(--btn-normal-border, transparent) !important;
+            transition: background-color .2s ease, border-color .2s ease, color .2s ease;
+        }
+        .button:hover { background-color: var(--btn-normal-hover, var(--btn-normal-bg)) !important; }
+        .button.secondary {
+            background-color: var(--btn-secondary-bg, var(--btn-normal-bg)) !important;
+            color: var(--btn-secondary-fg, var(--btn-normal-fg, #111)) !important;
+            border-color: var(--btn-secondary-border, var(--btn-normal-border, transparent)) !important;
+        }
+        .button.secondary:hover { background-color: var(--btn-secondary-hover, var(--btn-secondary-bg)) !important; }
+        .button.primary { background-color: var(--btn-primary-bg, var(--accent)) !important; color: var(--btn-primary-fg, #fff) !important; border-color: var(--btn-primary-border, transparent) !important; }
+        .button.primary:hover { background-color: var(--btn-primary-hover, var(--accent-hover)) !important; }
+        .button.warning { background-color: var(--btn-warning-bg, #f59e0b) !important; color: var(--btn-warning-fg, #fff) !important; }
+        .button.warning:hover { background-color: var(--btn-warning-hover, #d97706) !important; }
+        .button.danger, .button.critical { background-color: var(--btn-critical-bg, #dc3545) !important; color: var(--btn-critical-fg, #fff) !important; }
+        .button.danger:hover, .button.critical:hover { background-color: var(--btn-critical-hover, #c82333) !important; }
+
+        /* Primary header links also follow theme primary color */
+        .header-link.primary { background: var(--btn-primary-bg, var(--accent)) !important; color: var(--btn-primary-fg, #fff) !important; border-color: var(--accent-strong) !important; }
+        .header-link.primary:hover { background: var(--btn-primary-hover, var(--accent-hover)) !important; }
+
         /* Header actions */
         .header { display:flex; align-items:center; justify-content: space-between; }
         .header-actions { display:flex; align-items:center; gap:8px; }
@@ -669,9 +751,326 @@
             background: #006ba3;
             border-color: #005a87;
         }
+        /* ---- Theme variables and overrides ---- */
+        :root {
+            --accent: #007cba; /* default primary */
+            --accent-hover: #005a87;
+            --accent-strong: #006ba3;
+            --danger: #dc3545;
+            /* Default button mapping (Original) */
+            --btn-normal-bg: #f5f7fb;
+            --btn-normal-fg: #333;
+            --btn-normal-hover: #e9eef8;
+            --btn-primary-bg: var(--accent);
+            --btn-primary-fg: #fff;
+            --btn-primary-hover: var(--accent-hover);
+            --btn-secondary-bg: #e9ecef;
+            --btn-secondary-fg: #333;
+            --btn-secondary-hover: #dee2e6;
+            --btn-critical-bg: #dc3545;
+            --btn-critical-fg: #fff;
+            --btn-critical-hover: #c82333;
+            --btn-warning-bg: #f59e0b;
+            --btn-warning-fg: #fff;
+            --btn-warning-hover: #d97706;
+        }
+        /* Default/original */
+        [data-theme="default"] {
+            --accent: #007cba;
+            --accent-hover: #005a87;
+            --accent-strong: #006ba3;
+        }
+        /* Gold palette: DBDBDB F0A500 CF7500 000000 */
+        [data-theme="gold"] {
+            --accent: #F0A500;
+            --accent-hover: #CF7500;
+            --accent-strong: #CF7500;
+            --btn-normal-bg: #DBDBDB;
+            --btn-normal-fg: #000;
+            --btn-normal-hover: #F0A50033;
+            --btn-primary-bg: #F0A500;
+            --btn-primary-fg: #111;
+            --btn-primary-hover: #CF7500;
+            --btn-secondary-bg: #DBDBDB;
+            --btn-secondary-fg: #111;
+            --btn-secondary-hover: #F0A50033;
+            --btn-critical-bg: #000000;
+            --btn-critical-fg: #fff;
+            --btn-critical-hover: #161616;
+            --btn-warning-bg: #CF7500;
+            --btn-warning-fg: #fff;
+            --btn-warning-hover: #A65E00;
+        }
+        /* Fire palette: FF6107 E9290F C40018 292725 */
+        [data-theme="fire"] {
+            --accent: #FF6107;
+            --accent-hover: #E9290F;
+            --accent-strong: #C40018;
+            --btn-normal-bg: #FF6107;
+            --btn-normal-fg: #fff;
+            --btn-normal-hover: #E9290F;
+            --btn-primary-bg: #E9290F;
+            --btn-primary-fg: #fff;
+            --btn-primary-hover: #C40018;
+            --btn-secondary-bg: #FF6107;
+            --btn-secondary-fg: #fff;
+            --btn-secondary-hover: #E9290F;
+            --btn-critical-bg: #292725;
+            --btn-critical-fg: #fff;
+            --btn-critical-hover: #1f1e1d;
+            --btn-warning-bg: #C40018;
+            --btn-warning-fg: #fff;
+            --btn-warning-hover: #990013;
+        }
+
+        /* Additional palettes */
+        [data-theme="purpleIndigo"] {
+            --accent: #4B49AC;
+            --accent-hover: #7978E9;
+            --accent-strong: #7DA0FA;
+            --btn-normal-bg: #98BDFF;
+            --btn-normal-fg: #1e2230;
+            --btn-normal-hover: #7DA0FA;
+            --btn-primary-bg: #4B49AC;
+            --btn-primary-fg: #fff;
+            --btn-primary-hover: #7978E9;
+            --btn-secondary-bg: #7DA0FA;
+            --btn-secondary-fg: #1e2230;
+            --btn-secondary-hover: #4B49AC22;
+            --btn-critical-bg: #1f1e3a;
+            --btn-critical-fg: #fff;
+            --btn-critical-hover: #1a1931;
+            --btn-warning-bg: #F3797E;
+            --btn-warning-fg: #1e2230;
+            --btn-warning-hover: #e76a71;
+        }
+        [data-theme="lunaBlue"] {
+            --accent: #54ACBF;
+            --accent-hover: #26658C;
+            --accent-strong: #023859;
+            --btn-normal-bg: #A7EBF2;
+            --btn-normal-fg: #023859;
+            --btn-normal-hover: #54ACBF;
+            --btn-primary-bg: #26658C;
+            --btn-primary-fg: #fff;
+            --btn-primary-hover: #023859;
+            --btn-secondary-bg: #54ACBF;
+            --btn-secondary-fg: #023859;
+            --btn-secondary-hover: #26658C;
+            --btn-critical-bg: #011C40;
+            --btn-critical-fg: #fff;
+            --btn-critical-hover: #00142f;
+            --btn-warning-bg: #54ACBF;
+            --btn-warning-fg: #011C40;
+            --btn-warning-hover: #26658C;
+        }
+        [data-theme="roseTwilight"] {
+            --accent: #C38EB4;
+            --accent-hover: #66A8CF;
+            --accent-strong: #26425A;
+            --btn-normal-bg: #E1CBD7;
+            --btn-normal-fg: #262C47;
+            --btn-normal-hover: #C38EB4;
+            --btn-primary-bg: #66A8CF;
+            --btn-primary-fg: #0b1724;
+            --btn-primary-hover: #26425A;
+            --btn-secondary-bg: #C38EB4;
+            --btn-secondary-fg: #262C47;
+            --btn-secondary-hover: #66A8CF;
+            --btn-critical-bg: #262C47;
+            --btn-critical-fg: #fff;
+            --btn-critical-hover: #1d2337;
+            --btn-warning-bg: #C38EB4;
+            --btn-warning-fg: #262C47;
+            --btn-warning-hover: #A8769A;
+        }
+        [data-theme="dustyRose"] {
+            --accent: #6D3C52;
+            --accent-hover: #4B2138;
+            --accent-strong: #2D222F;
+        }
+        [data-theme="pastelOcean"] {
+            --accent: #0E8992;
+            --accent-hover: #0D313A;
+            --accent-strong: #8CBEBC;
+            --btn-normal-bg: #8CBEBC;
+            --btn-normal-fg: #0D313A;
+            --btn-normal-hover: #0E8992;
+            --btn-primary-bg: #0E8992;
+            --btn-primary-fg: #ffffff;
+            --btn-primary-hover: #0D313A;
+            --btn-secondary-bg: #E9A27C;
+            --btn-secondary-fg: #0D313A;
+            --btn-secondary-hover: #E7B8A6;
+            --btn-critical-bg: #0D313A;
+            --btn-critical-fg: #ffffff;
+            --btn-critical-hover: #092129;
+            --btn-warning-bg: #E9A27C;
+            --btn-warning-fg: #0D313A;
+            --btn-warning-hover: #E7B8A6;
+        }
+
+        /* Dark mode overrides */
+        :root[data-color-mode="dark"] {
+            --panel-bg: #1f2937;
+            --text: #e5e7eb;
+            --text-muted: #9ca3af;
+            --border-soft: #374151;
+        }
+        :root[data-color-mode="dark"] body { background-color: #0f172a; color: var(--text); }
+        :root[data-color-mode="dark"] .header { background: #0b1220; border-bottom-color: #374151; }
+        :root[data-color-mode="dark"] .sidebar { background: #0b1220; border-right-color: #374151; }
+        :root[data-color-mode="dark"] .main-content { background: #111827; }
+        :root[data-color-mode="dark"] .header-link { background: #1f2937; border-color: #374151; color: #e5e7eb; }
+        :root[data-color-mode="dark"] .header-link:hover { background: #374151; border-color: #4b5563; }
+        :root[data-color-mode="dark"] .tab-btn { background: #1f2937; border-color: #374151; color: #e5e7eb; }
+        :root[data-color-mode="dark"] .tab-btn.active { background: #111827; color: #ffffff; }
+        :root[data-color-mode="dark"] .section { background: var(--panel-bg); border-color: var(--border-soft); }
+        :root[data-color-mode="dark"] .help-text { color: var(--text-muted); }
+        :root[data-color-mode="dark"] input, :root[data-color-mode="dark"] select, :root[data-color-mode="dark"] .toggle-eye { background-color: #111827; color: #e5e7eb; border-color: #374151 !important; }
+        :root[data-color-mode="dark"] .button.secondary { background-color: #4b5563; }
+        :root[data-color-mode="dark"] .status.success { background: #16361d; color: #86efac; border-color: #14532d; }
+        :root[data-color-mode="dark"] .status.error { background: #3f1d20; color: #fecaca; border-color: #7f1d1d; }
+        :root[data-color-mode="dark"] .status.info { background: #112b34; color: #7dd3fc; border-color: #155e75; }
+
+        /* Apply theme accents only to explicitly marked primary actions */
+        .button.primary { background-color: var(--accent) !important; }
+        .button.primary:hover { background-color: var(--accent-hover) !important; }
+        /* Warning variant for attention but non-destructive actions */
+        .button.warning { background-color: #f59e0b; color: #fff; }
+        .button.warning:hover { background-color: #d97706; }
+        .header-link.primary { background: var(--accent); border-color: var(--accent-strong); color: #fff; }
+        .header-link.primary:hover { background: var(--accent-strong); border-color: var(--accent-hover); }
+        #toggleManagedOAuth, #toggleManualConfig { border-color: var(--accent) !important; color: var(--accent) !important; }
+        input[type="text"]:focus,
+        input[type="url"]:focus,
+        input[type="password"]:focus { border-color: var(--accent) !important; }
+        /* Keep section borders as originally designed; do not force accent */
+        /* In non-sidebar layout, push content down when notification is visible */
+        body:not(.layout-sidebar) .container {
+            /* keep side paddings from base .container, only adjust top */
+            padding-top: calc(24px + var(--notification-h));
+            transition: padding-top 0.35s ease;
+        }
     </style>
 </head>
 <body class="layout-sidebar">
+    <!-- Beta Software Notification Bar - Professional Design -->
+    <div id="betaNotificationBar" style="
+        background: linear-gradient(135deg, #4f46e5 0%, #7c3aed 100%);
+        color: #ffffff;
+        padding: 12px 24px;
+        position: fixed;
+        top: 0;
+        left: 0;
+        right: 0;
+        z-index: 2000;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        font-size: 14px;
+        font-weight: 500;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+        transition: all 0.3s ease;
+    ">
+        <div style="display: flex; align-items: center; gap: 12px;">
+            <div style="
+                width: 32px;
+                height: 32px;
+                background: rgba(255,255,255,0.2);
+                border-radius: 8px;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                font-size: 16px;
+            ">⚠️</div>
+            <div>
+                <div style="font-weight: 600; font-size: 14px; margin-bottom: 2px;">Beta Software Notice</div>
+                <div style="font-size: 12px; opacity: 0.9;">Always backup your bookmarks before making changes</div>
+            </div>
+        </div>
+        <div style="display: flex; align-items: center; gap: 12px;">
+            <button id="quickBackupBtn" style="
+                background: rgba(255,255,255,0.15);
+                color: #ffffff;
+                border: 1px solid rgba(255,255,255,0.3);
+                padding: 8px 16px;
+                border-radius: 6px;
+                font-size: 12px;
+                font-weight: 600;
+                cursor: pointer;
+                transition: all 0.2s ease;
+                backdrop-filter: blur(10px);
+            "
+            onmouseover="this.style.background='rgba(255,255,255,0.25)'"
+            onmouseout="this.style.background='rgba(255,255,255,0.15)'"
+            title="Create backup now">
+                <span style="margin-right: 6px;">💾</span>Backup Now
+            </button>
+            <button id="closeBetaNotificationBar" style="
+                background: none;
+                border: none;
+                font-size: 18px;
+                color: rgba(255,255,255,0.8);
+                cursor: pointer;
+                padding: 8px;
+                border-radius: 4px;
+                transition: all 0.2s ease;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+            "
+            onmouseover="this.style.background='rgba(255,255,255,0.1)'; this.style.color='#ffffff';"
+            onmouseout="this.style.background='none'; this.style.color='rgba(255,255,255,0.8)';"
+            title="Close notification">×</button>
+        </div>
+    </div>
+
+    <!-- Alternative Beta Notification Bar - Minimal Design (hidden by default) -->
+    <div id="betaNotificationBarAlt" style="
+        background: #fef3c7;
+        color: #92400e;
+        padding: 8px 20px;
+        position: fixed;
+        top: 0;
+        left: 0;
+        right: 0;
+        z-index: 2000;
+        display: none;
+        align-items: center;
+        justify-content: space-between;
+        font-size: 13px;
+        font-weight: 500;
+        border-bottom: 1px solid #fbbf24;
+        transition: all 0.3s ease;
+    ">
+        <div style="display: flex; align-items: center; gap: 8px;">
+            <span style="color: #f59e0b;">⚠️</span>
+            <span><strong>Beta Software:</strong> Always backup your bookmarks before making changes</span>
+        </div>
+        <div style="display: flex; align-items: center; gap: 12px;">
+            <button id="quickBackupBtnAlt" style="
+                background: #f59e0b;
+                color: #ffffff;
+                border: none;
+                padding: 4px 12px;
+                border-radius: 4px;
+                font-size: 11px;
+                font-weight: 600;
+                cursor: pointer;
+            " title="Create backup now">Backup</button>
+            <button id="closeBetaNotificationBarAlt" style="
+                background: none;
+                border: none;
+                font-size: 18px;
+                color: #92400e;
+                cursor: pointer;
+                padding: 2px 6px;
+                border-radius: 2px;
+            " title="Close notification">×</button>
+        </div>
+    </div>
+
     <div class="container">
         <div class="header">
             <h1>Open Bookmark Sync</h1>
@@ -708,7 +1107,13 @@
                 <div class="sidebar-section">
                     <div class="sidebar-title">Maintenance</div>
                     <button class="side-link" data-tab="import">Import/Export</button>
-                    <button class="side-link danger" data-tab="danger">⚠️ Danger Zone</button>
+                    <button class="side-link" data-tab="backup">Backup & Restore</button>
+                    <button class="side-link" data-tab="duplicates">Duplicates</button>
+                    <button class="side-link danger" data-tab="danger">Danger Zone ⚠️</button>
+                </div>
+                <div class="sidebar-section">
+                    <div class="sidebar-title">Settings</div>
+                    <button class="side-link" data-tab="general">General</button>
                 </div>
                 <div class="sidebar-section">
                     <div class="sidebar-title">Resources</div>
@@ -720,6 +1125,7 @@
             <div class="main-content">
                 <div class="tab-content">
         <div id="statusMessage" class="status hidden" style="position: sticky; top: 0; z-index: 5; margin: 0 0 10px 0;"></div>
+
 
         <!-- Closeable Privacy Notice -->
         <div id="privacyNotice" class="section" style="border: 1px solid #e8f4f8; background: #f8fcff; margin-bottom: 16px; display: block;">
@@ -737,37 +1143,16 @@
         </div>
 
         <div class="section tab-panel active" id="tab-api" data-tab="api">
-            <h2>Raindrop.io API Configuration</h2>
-
-            <div class="form-group">
-                <label class="checkbox-label" style="gap:8px; align-items:center; display:flex;">
-                    <input type="checkbox" id="managedOAuth"> Use Managed OAuth
-                    <span class="tooltip">
-                        <span style="cursor: help;">ℹ️</span>
-                        <span class="tooltiptext">Safer authentication method that keeps your Client Secret secure on Cloudflare servers instead of in the browser extension</span>
-                    </span>
-                </label>
-                <div class="help-text">When enabled, authentication goes through your Cloudflare Worker (safer: no Client Secret in the extension). If this fails, we'll switch to Manual (Direct) mode with your extension identity Redirect URI.</div>
-            </div>
-
-            <div class="form-group" id="managedBaseGroup" style="display:block;">
-                <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 6px;">
-                    <label for="managedOAuthBaseUrl" style="margin: 0;">Managed OAuth Base URL</label>
-                    <div id="workerStatusContainer">
-                        <span id="workerStatus" class="help-text"></span>
-                    </div>
-                </div>
-                <div class="input-row">
-                    <input type="url" id="managedOAuthBaseUrl" placeholder="https://rdoauth.daiquiri.dev" class="pre-filled" disabled>
-                    <button id="managedBaseEdit" type="button" class="toggle-eye" aria-label="Edit base URL">Edit</button>
-                </div>
-                <div class="help-text">
-                    <strong>OAuth Service URL:</strong> This is the backend authentication service. Visiting it directly shows "not found" - this is normal and expected.
-                    The extension communicates with this service automatically during authentication. Default is locked; click Edit for manual override (beta/testing).
-                </div>
-            </div>
-
             <h2>Authentication</h2>
+
+            <div id="authMethodGroup" class="form-group">
+                <label for="authMethod">Authentication Method</label>
+                <select id="authMethod">
+                    <option value="managed" selected>Managed OAuth (Recommended)</option>
+                    <option value="manual">Manual Configuration</option>
+                </select>
+                <div class="help-text">Choose how to authenticate with Raindrop.io. Managed OAuth is safer and easier.</div>
+            </div>
             <div id="authStatus" class="auth-status">
                 <div id="statusIndicator" class="status-indicator disconnected"></div>
                 <span id="authStatusText">Not authenticated</span>
@@ -776,27 +1161,47 @@
                     <div id="authProgressFill" class="progress-bar-fill"></div>
                 </div>
             </div>
-            <div style="display: flex; gap: 8px; flex-wrap: wrap; align-items: center;">
-                <div class="tooltip">
-                    <button id="authenticateManaged" class="button">Authenticate with Raindrop</button>
-                    <span class="tooltiptext">Secure authentication through Cloudflare Worker. No sensitive data stored in browser.</span>
-                </div>
+            <div id="authButtons" style="display: flex; gap: 8px; flex-wrap: wrap; align-items: center;">
+                <button id="authenticateBtn" class="button">Authenticate with Raindrop</button>
                 <button id="testConnection" class="button secondary">Test Connection</button>
                 <button id="logout" class="button danger hidden">Logout</button>
             </div>
 
-            <div id="manualAuthSection" class="hidden" style="margin-top: 12px;">
-                <div style="display: flex; gap: 8px; align-items: center;">
-                    <div class="tooltip">
-                        <button id="authenticateManual" class="button secondary">Manual Authentication</button>
-                        <span class="tooltiptext">Direct authentication with Raindrop.io. Requires Client ID and Secret to be entered above.</span>
+            <div id="managedOAuthSection" style="margin-top: 16px; padding: 12px; border: 1px solid #e6e9ef; border-radius: 6px; background: #fafbfc;">
+                <div id="managedOAuthHeader" style="display: flex; align-items: center; justify-content: space-between;">
+                    <div id="managedOAuthTitle">
+                        <div style="display: flex; align-items: center; gap: 8px;">
+                            <h3 style="margin: 0 0 4px 0; font-size: 14px;">Managed OAuth Settings</h3>
+                            <div id="workerStatusContainer">
+                                <span id="workerStatus" class="help-text"></span>
+                            </div>
+                        </div>
+                        <span class="help-text" style="margin: 0;">Advanced configuration for managed authentication</span>
                     </div>
-                    <span class="help-text">Use if Cloudflare authentication fails</span>
+                    <button id="toggleManagedOAuth" type="button" style="background: none; border: 1px solid #007cba; color: #007cba; padding: 6px 12px; border-radius: 4px; font-size: 12px; cursor: pointer;">
+                        Show
+                    </button>
+                </div>
+
+                <div id="managedOAuthDetails" class="hidden" style="margin-top: 12px;">
+                    <div id="baseUrlGroup" class="form-group">
+                        <div id="baseUrlLabel" style="display: flex; align-items: center; gap: 8px; margin-bottom: 6px;">
+                            <label for="managedOAuthBaseUrl" style="margin: 0;">OAuth Service URL</label>
+                        </div>
+                        <div class="input-row">
+                            <input type="url" id="managedOAuthBaseUrl" placeholder="https://rdoauth.daiquiri.dev" class="pre-filled" disabled>
+                            <button id="managedBaseEdit" type="button" class="toggle-eye" aria-label="Edit base URL">Edit</button>
+                        </div>
+                        <div class="help-text">
+                            This is the backend authentication service. Visiting it directly shows "not found" - this is normal and expected.
+                            Default is locked; click Edit for manual override (beta/testing).
+                        </div>
+                    </div>
                 </div>
             </div>
             <div id="manualConfigSection" style="margin-top: 16px; padding: 12px; border: 1px solid #e6e9ef; border-radius: 6px; background: #fafbfc;">
-                <div style="display: flex; align-items: center; justify-content: space-between;">
-                    <div>
+                <div id="manualConfigHeader" style="display: flex; align-items: center; justify-content: space-between;">
+                    <div id="manualConfigTitle">
                         <h3 style="margin: 0 0 4px 0; font-size: 14px;">Manual Configuration</h3>
                         <span class="help-text" style="margin: 0;">For advanced users or direct authentication setup</span>
                     </div>
@@ -806,7 +1211,7 @@
                 </div>
 
                 <div id="manualConfigDetails" class="hidden" style="margin-top: 12px;">
-                <div class="form-group">
+                <div id="clientIdGroup" class="form-group">
                     <label for="clientId">Client ID</label>
                     <div class="input-row">
                         <input type="password" id="clientId" placeholder="Enter your Raindrop Client ID">
@@ -815,7 +1220,7 @@
                     <div class="help-text">Stored locally via Chrome storage. Hidden by default for privacy.</div>
                 </div>
 
-                <div class="form-group">
+                <div id="clientSecretGroup" class="form-group">
                     <label for="clientSecret">Client Secret</label>
                     <div class="input-row">
                         <input type="password" id="clientSecret" placeholder="Enter your Raindrop Client Secret">
@@ -824,7 +1229,7 @@
                     <div class="help-text">Do not share your client secret.</div>
                 </div>
 
-                <div class="form-group">
+                <div id="redirectUriGroup" class="form-group">
                     <label for="redirectUri">Redirect URI</label>
                     <div class="input-row">
                         <input type="url" id="redirectUri" class="pre-filled" placeholder="Extension identity redirect (auto)">
@@ -833,7 +1238,7 @@
                     <div class="help-text">Default is the extension identity URL (auto). You can override this for beta testing; ensure it matches what you registered in Raindrop.</div>
                     <div id="redirectHint" class="help-text" style="margin-top:6px;"></div>
                 </div>
-                <div style="margin-top: 16px;">
+                <div id="saveConfigSection" style="margin-top: 16px;">
                     <button id="saveConfig" class="button">Save Configuration</button>
                 </div>
                 </div>
@@ -841,7 +1246,7 @@
 
             <div id="debugSection" class="section" style="margin-top:16px;">
                 <h3>Debug</h3>
-                <div style="display:flex; gap:8px; flex-wrap:wrap;">
+                <div id="debugButtons" style="display:flex; gap:8px; flex-wrap:wrap;">
                     <button id="viewAuthState" class="button secondary" type="button">View Auth State</button>
                     <button id="runHealthCheck" class="button secondary" type="button">Run Health Check</button>
                     <button id="clearTokens" class="button danger" type="button">Clear Tokens</button>
@@ -852,6 +1257,19 @@
 
         <div class="section tab-panel" id="tab-sync" data-tab="sync">
             <h2>Sync Settings</h2>
+
+            <!-- Raindrop Protection Notice -->
+            <div class="section" style="border: 1px solid #10b981; background: #ecfdf5; margin-bottom: 16px; padding: 12px; border-radius: 6px;">
+                <div style="display: flex; align-items: center; gap: 8px;">
+                    <span style="color: #047857; font-size: 16px;">🛡️</span>
+                    <div>
+                        <h3 style="margin: 0 0 4px 0; color: #047857; font-size: 14px;">Raindrop Protection Active</h3>
+                        <div class="help-text" style="margin: 0; color: #047857;">
+                            This extension never deletes bookmarks from Raindrop.io. Your Raindrop collection is always safe.
+                        </div>
+                    </div>
+                </div>
+            </div>
 
             <div class="form-group">
                 <div class="checkbox-row">
@@ -887,28 +1305,48 @@
                 <label for="syncModeSelect">Sync mode</label>
                 <select id="syncModeSelect">
                     <option value="additions_only">Two-way: Additions only</option>
-                    <option value="mirror">Two-way: Mirror (add/update/delete)</option>
+                    <option value="mirror">Two-way: Mirror (add/update, no deletes)</option>
                     <option value="upload_only">One-way: Browser → Raindrop (additions only)</option>
                     <option value="off" selected>One-way: Raindrop → Browser (rebuild)</option>
                 </select>
-                <div class="help-text">Controls direction and level of reconciliation.</div>
+                <div class="help-text">Controls direction and level of reconciliation. Extension never deletes from Raindrop for safety.</div>
             </div>
 
             <div class="form-group collections-block">
                 <label>Collections to import</label>
                 <div class="help-text">Choose which Raindrop collections to import.</div>
-                <div class="checkbox-row">
-                    <label class="checkbox-label"><input type="checkbox" id="topLevelOnly" checked> Top-level only (recommended)</label>
+
+                <!-- Collection Import Mode Selection -->
+                <div style="margin: 12px 0; padding: 12px; border: 1px solid #e9ecef; border-radius: 6px; background: #f8f9fa;">
+                    <div style="margin-bottom: 8px; font-weight: 600;">Import Mode:</div>
+                    <label style="display: flex; align-items: center; gap: 8px; margin-bottom: 8px;">
+                        <input type="radio" name="collectionMode" id="topLevelOnlyMode" value="topLevel" checked>
+                        <span><strong>Top-level only</strong> (Recommended)</span>
+                    </label>
+                    <div style="margin-left: 24px; margin-bottom: 12px; color: #6c757d; font-size: 14px;">
+                        Import only parent collections, excluding sub-collections. Safer and faster.
+                    </div>
+
+                    <label style="display: flex; align-items: center; gap: 8px;">
+                        <input type="radio" name="collectionMode" id="customSelectionMode" value="custom">
+                        <span><strong>Custom selection</strong></span>
+                    </label>
+                    <div style="margin-left: 24px; color: #6c757d; font-size: 14px;">
+                        Manually choose specific collections to import. Advanced users only.
+                    </div>
                 </div>
                 <div class="refresh-section">
                     <button id="refreshCollections" class="button secondary" type="button">Refresh Collections & Folders</button>
                 </div>
-                <div class="collections-controls">
-                    <input type="text" id="collectionsSearch" placeholder="Search collections" />
-                    <button id="selectAllCollections" class="button secondary small" type="button">Select all</button>
-                    <button id="clearCollections" class="button secondary small" type="button">Clear</button>
+                <!-- Custom Selection Controls (shown only when Custom mode is selected) -->
+                <div id="customCollectionControls" style="display: none;">
+                    <div class="collections-controls">
+                        <input type="text" id="collectionsSearch" placeholder="Search collections" disabled />
+                        <button id="selectAllCollections" class="button secondary small" type="button" disabled>Select all</button>
+                        <button id="clearCollections" class="button secondary small" type="button" disabled>Clear</button>
+                    </div>
+                    <div id="collectionsList" class="collections-list"></div>
                 </div>
-                <div id="collectionsList" class="collections-list"></div>
                 <div class="help-text">Select specific collections to import. Only available when "Top-level only" is disabled.</div>
             </div>
 
@@ -957,9 +1395,10 @@
             <div class="support-section">
                 <h3>🚀 Quick Setup</h3>
                 <ol style="margin: 16px 0; padding-left: 20px; line-height: 1.8;">
-                    <li><strong>Connect to Raindrop.io:</strong> Go to Connection tab and click "Authenticate with Raindrop"</li>
-                    <li><strong>Configure Sync:</strong> In the Sync tab, choose your sync mode and interval</li>
-                    <li><strong>Select Target:</strong> Choose which browser bookmarks folder to sync to</li>
+                    <li><strong>Choose Authentication Method:</strong> Go to Connect tab and select "Managed OAuth" (recommended) or "Manual Configuration"</li>
+                    <li><strong>Authenticate:</strong> Click "Authenticate with Raindrop" - no additional setup needed for Managed OAuth</li>
+                    <li><strong>Configure Sync Settings:</strong> In the Sync tab, choose your sync mode and interval</li>
+                    <li><strong>Select Target Folder:</strong> Choose which browser bookmarks folder to sync to</li>
                     <li><strong>Choose Collections:</strong> Select which Raindrop collections to sync</li>
                     <li><strong>Enable Sync:</strong> Check "Enable Raindrop Sync" to start automatic synchronization</li>
                 </ol>
@@ -968,28 +1407,41 @@
             <div class="support-section">
                 <h3>💡 Tips for Best Results</h3>
                 <ul style="margin: 16px 0; padding-left: 20px; line-height: 1.6;">
-                    <li>Start with "Additions only" sync mode for safety</li>
-                    <li>Use "Top-level only" collections setting initially</li>
-                    <li>Test with a longer sync interval (15-30 minutes) at first</li>
-                    <li>Export your bookmarks before making major changes</li>
-                    <li>Use the "Test Connection" button to verify your setup</li>
+                    <li><strong>Authentication:</strong> Use "Managed OAuth" for easier setup - no need to create Raindrop app</li>
+                    <li><strong>Safety First:</strong> Start with "One-way: Raindrop → Browser" sync mode (default)</li>
+                    <li><strong>Collections:</strong> Use "Top-level only" collections setting initially</li>
+                    <li><strong>Testing:</strong> Test with a longer sync interval (15-30 minutes) at first</li>
+                    <li><strong>Backup:</strong> Export your bookmarks before making major changes</li>
+                    <li><strong>Verification:</strong> Use the "Test Connection" button to verify your setup</li>
                 </ul>
+            </div>
+
+            <div class="support-section">
+                <h3>🔐 Authentication Methods</h3>
+                <div style="margin: 16px 0;">
+                    <div style="margin-bottom: 12px;">
+                        <strong>Managed OAuth (Recommended)</strong> - Easy setup using our secure authentication service. No need to create a Raindrop app or manage secrets.
+                    </div>
+                    <div style="margin-bottom: 12px;">
+                        <strong>Manual Configuration</strong> - For advanced users. Requires creating your own Raindrop app and entering Client ID/Secret manually.
+                    </div>
+                </div>
             </div>
 
             <div class="support-section">
                 <h3>⚙️ Sync Modes Explained</h3>
                 <div style="margin: 16px 0;">
                     <div style="margin-bottom: 12px;">
-                        <strong>Two-way: Additions only</strong> - Safest option. Only adds new bookmarks, never deletes.
+                        <strong>One-way: Raindrop → Browser (Default)</strong> - Safest option. Downloads Raindrop bookmarks to browser only. Perfect for first-time users.
                     </div>
                     <div style="margin-bottom: 12px;">
-                        <strong>Two-way: Mirror</strong> - Full synchronization including additions, updates, and deletions.
+                        <strong>Two-way: Additions only</strong> - Safe bi-directional sync. Only adds new bookmarks, never deletes anything.
                     </div>
                     <div style="margin-bottom: 12px;">
-                        <strong>One-way: Browser → Raindrop</strong> - Uploads browser bookmarks to Raindrop only.
+                        <strong>Two-way: Mirror</strong> - Bi-directional sync with additions and updates. Never deletes from Raindrop for safety.
                     </div>
                     <div style="margin-bottom: 12px;">
-                        <strong>One-way: Raindrop → Browser</strong> - Downloads Raindrop bookmarks to browser only.
+                        <strong>One-way: Browser → Raindrop</strong> - Uploads browser bookmarks to Raindrop only. Good for backing up browser bookmarks.
                     </div>
                 </div>
             </div>
@@ -997,6 +1449,14 @@
 
         <div class="section tab-panel" id="tab-import" data-tab="import">
             <h2>Import & Export</h2>
+
+            <!-- Automatic Backup Status -->
+            <div class="form-group">
+                <div class="help-text" style="background: #f3f4f6; padding: 12px; border-radius: 6px; margin-bottom: 16px;">
+                    💡 <strong>Note:</strong> For backup and restore operations, please use the dedicated <strong>Backup & Restore</strong> tab in the sidebar.
+                </div>
+            </div>
+
 
             <div class="form-group">
                 <h3>Export Bookmarks</h3>
@@ -1020,6 +1480,67 @@
                     </div>
                 </div>
             </div>
+
+            <div class="form-group">
+                <h3>⚠️ Emergency Restore</h3>
+                <div style="margin: 12px 0; padding: 12px; border: 1px solid #f59e0b; background: #fffbeb; border-radius: 6px;">
+                    <div style="margin-bottom: 8px;">
+                        <button id="emergencyRestore" class="button danger" type="button">Emergency Restore (Clear All + Restore)</button>
+                    </div>
+                    <div class="help-text" style="color: #92400e;">
+                        <strong>Use only if bookmarks are corrupted:</strong> This will delete ALL current bookmarks and restore from a backup file.
+                        Only use if your bookmarks are in a broken state.
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="section tab-panel" id="tab-general" data-tab="general">
+            <h2>General Settings</h2>
+
+            <div class="form-group">
+                <h3>Interface Preferences</h3>
+                <div style="margin: 16px 0;">
+                    <label style="display: flex; align-items: center; gap: 8px; margin-bottom: 8px;">
+                        <input type="radio" name="notificationStyle" id="modernNotification" value="modern" checked>
+                        <span><strong>Modern Notification Bar</strong> - Professional gradient design with glassmorphism effects</span>
+                    </label>
+                    <label style="display: flex; align-items: center; gap: 8px;">
+                        <input type="radio" name="notificationStyle" id="minimalNotification" value="minimal">
+                        <span><strong>Minimal Notification Bar</strong> - Simple yellow warning design</span>
+                    </label>
+                </div>
+                <div style="margin: 12px 0;">
+                    <button id="applyNotificationStyle" class="button secondary" type="button">Apply Style</button>
+                    <button id="previewNotificationStyle" class="button secondary" type="button">Preview</button>
+                </div>
+            </div>
+
+            <div class="form-group">
+                <h3>Color Theme</h3>
+                <div style="margin: 12px 0; display: grid; gap: 8px; max-width: 380px;">
+                    <label for="themeSelect">Choose theme</label>
+                    <select id="themeSelect">
+                        <option value="default">Original</option>
+                        <option value="gold">Gold</option>
+                        <option value="fire">Fire</option>
+                        <option value="purpleIndigo">Purple Indigo</option>
+                        <option value="lunaBlue">Luna Blue</option>
+                        <option value="roseTwilight">Rose Twilight</option>
+                        <option value="dustyRose">Dusty Rose</option>
+                        <option value="pastelOcean">Pastel Ocean</option>
+                    </select>
+                    <div id="themePreview" class="help-text" style="display:flex; gap:6px; align-items:center; flex-wrap:wrap; margin-top:6px;"></div>
+                </div>
+                <div style="margin: 12px 0; display:flex; gap:12px; align-items:center; flex-wrap:wrap;">
+                    <button id="applyTheme" class="button secondary" type="button">Apply Theme</button>
+                    <label style="display:flex; align-items:center; gap:8px;">
+                        <input type="checkbox" id="darkModeToggle" />
+                        <span>Dark Mode</span>
+                    </label>
+                    
+                </div>
+            </div>
         </div>
 
         <div class="section tab-panel" id="tab-support" data-tab="support">
@@ -1039,6 +1560,8 @@
                 <li>Export JSON backup before making big changes</li>
                 <li>Disable sync before clearing all bookmarks</li>
             </ul>
+
+            
 
             <div class="support-section">
                 <h3>Need Help?</h3>
@@ -1112,6 +1635,117 @@
             </div>
         </div>
 
+        <!-- Duplicates Panel -->
+        <div class="section tab-panel" id="tab-duplicates" data-tab="duplicates">
+            <h2>Duplicate Management</h2>
+
+            <!-- Status Section -->
+            <div class="form-group">
+                <div id="duplicateStatus" style="padding: 12px; border: 1px solid #e9ecef; border-radius: 6px; background: #f8f9fa; margin-bottom: 16px;">
+                    <div id="duplicateStatusText">Click "Scan for Duplicates" to analyze your bookmarks</div>
+                </div>
+            </div>
+
+            <!-- Smart Cleanup (Safe) -->
+            <div class="form-group">
+                <h3 style="color: #0066cc;">🎯 Smart Cleanup (Recommended)</h3>
+                <div style="margin: 12px 0;">
+                    <button id="scanDuplicates" class="button" style="background: #0066cc;" type="button">Scan for Duplicates</button>
+                    <div class="help-text">Scan and preview duplicate bookmarks and folders before making any changes. Safe and user-friendly.</div>
+                </div>
+                <div id="duplicatePreview" class="hidden" style="margin: 16px 0; padding: 12px; border: 1px solid #e6e9ef; border-radius: 6px; background: #f8f9fa;">
+                    <h4 style="color: #333; margin: 0 0 12px 0;">Duplicate Analysis Results</h4>
+                    <div id="duplicateResults"></div>
+                    <div style="margin-top: 12px; display: flex; gap: 8px; flex-wrap: wrap;">
+                        <button id="autoCleanupSelected" class="button" type="button">Auto Cleanup Selected</button>
+                        <button id="advancedSelection" class="button secondary" type="button">Advanced Selection</button>
+                        <button id="cancelScan" class="button secondary" type="button">Cancel</button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Quick Actions -->
+            <div class="form-group">
+                <h3 style="color: #dc3545;">⚡ Quick Actions (Auto)</h3>
+                <div style="margin: 12px 0;">
+                    <button id="cleanupDuplicates" class="button danger" type="button">Remove Duplicate Bookmarks</button>
+                    <div class="help-text" style="color: #721c24; margin-top: 4px;">Automatically removes duplicate bookmarks in browser only (no Raindrop changes).</div>
+                </div>
+                <div style="margin: 12px 0;">
+                    <button id="mergeDuplicateFolders" class="button danger" type="button">Merge Duplicate Folders</button>
+                    <div class="help-text" style="color: #721c24; margin-top: 4px;">Automatically finds folders with identical names and merges their contents.</div>
+                </div>
+                <div style="margin: 12px 0;">
+                    <button id="cleanupAndMerge" class="button danger" type="button">Complete Cleanup</button>
+                    <div class="help-text" style="color: #721c24; margin-top: 4px;">Complete automatic cleanup: removes duplicate bookmarks AND merges duplicate folders.</div>
+                </div>
+            </div>
+
+            <!-- Scan Controls -->
+            <div class="form-group">
+                <h3>Detailed Analysis</h3>
+                <div style="display: flex; gap: 12px; flex-wrap: wrap; margin: 12px 0;">
+                    <button id="scanDuplicatesTab" class="button">Scan for Duplicates</button>
+                    <button id="autoFixDuplicates" class="button secondary" disabled>Auto-Fix All Duplicates</button>
+                    <button id="refreshDuplicateView" class="button secondary">Refresh View</button>
+                </div>
+                <div class="help-text">
+                    Scan will analyze all bookmarks and folders for duplicates based on URL and name matching.
+                </div>
+            </div>
+
+            <!-- Duplicate Results -->
+            <div id="duplicateResultsTab" style="display: none;">
+                <!-- Duplicate Bookmarks Section -->
+                <div class="form-group">
+                    <h3>📄 Duplicate Bookmarks <span id="duplicateBookmarkCount" class="badge">0</span></h3>
+                    <div id="duplicateBookmarksList" class="duplicate-list">
+                        <!-- Dynamic content -->
+                    </div>
+                </div>
+
+                <!-- Duplicate Folders Section -->
+                <div class="form-group">
+                    <h3>📁 Duplicate Folders <span id="duplicateFolderCount" class="badge">0</span></h3>
+                    <div id="duplicateFoldersList" class="duplicate-list">
+                        <!-- Dynamic content -->
+                    </div>
+                </div>
+
+                <!-- Bulk Actions -->
+                <div class="form-group">
+                    <h3>Bulk Actions</h3>
+                    <div style="display: flex; gap: 12px; flex-wrap: wrap; margin: 12px 0;">
+                        <button id="selectAllDuplicates" class="button secondary">Select All</button>
+                        <button id="selectNoneDuplicates" class="button secondary">Select None</button>
+                        <button id="removeSelectedDuplicates" class="button danger" disabled>Remove Selected</button>
+                    </div>
+                    <div class="help-text">
+                        Select individual duplicates or use bulk actions to manage multiple items at once.
+                    </div>
+                </div>
+            </div>
+
+            <!-- Advanced Options -->
+            <div class="form-group">
+                <h3>Advanced Options</h3>
+                <div style="margin: 12px 0;">
+                    <label style="display: flex; align-items: center; gap: 8px; margin-bottom: 8px;">
+                        <input type="checkbox" id="includeSubfolders" checked>
+                        <span>Include subfolders in scan</span>
+                    </label>
+                    <label style="display: flex; align-items: center; gap: 8px; margin-bottom: 8px;">
+                        <input type="checkbox" id="exactTitleMatch">
+                        <span>Require exact title match for bookmarks</span>
+                    </label>
+                    <label style="display: flex; align-items: center; gap: 8px;">
+                        <input type="checkbox" id="createBackupBeforeRemoval" checked>
+                        <span>Automatically create backup before removing duplicates</span>
+                    </label>
+                </div>
+            </div>
+        </div>
+
         <div class="section tab-panel" id="tab-danger" data-tab="danger">
             <h2 style="color: #dc3545;">⚠️ Danger Zone</h2>
             <p style="color: #721c24; font-weight: 500; margin-bottom: 24px;">
@@ -1119,10 +1753,35 @@
             </p>
 
             <div class="danger-section">
-                <h3 style="color: #dc3545; margin: 16px 0 8px 0;">Browser Cleanup</h3>
+                <h3 style="color: #dc3545; margin: 16px 0 8px 0;">🎯 Smart Cleanup (Recommended)</h3>
+                <div style="margin: 12px 0;">
+                    <button id="scanDuplicates" class="button" style="background: #0066cc;" type="button">Scan for Duplicates</button>
+                    <div class="help-text" style="color: #721c24; margin-top: 4px;">Scan and preview duplicate bookmarks and folders before making any changes. Safe and user-friendly.</div>
+                </div>
+                <div id="duplicatePreview" class="hidden" style="margin: 16px 0; padding: 12px; border: 1px solid #e6e9ef; border-radius: 6px; background: #f8f9fa;">
+                    <h4 style="color: #333; margin: 0 0 12px 0;">Duplicate Analysis Results</h4>
+                    <div id="duplicateResults"></div>
+                    <div style="margin-top: 12px; display: flex; gap: 8px; flex-wrap: wrap;">
+                        <button id="autoCleanupSelected" class="button" type="button">Auto Cleanup Selected</button>
+                        <button id="advancedSelection" class="button secondary" type="button">Advanced Selection</button>
+                        <button id="cancelScan" class="button secondary" type="button">Cancel</button>
+                    </div>
+                </div>
+            </div>
+
+            <div class="danger-section">
+                <h3 style="color: #dc3545; margin: 16px 0 8px 0;">⚡ Quick Actions (Auto)</h3>
                 <div style="margin: 12px 0;">
                     <button id="cleanupDuplicates" class="button danger" type="button">Remove Duplicate Bookmarks</button>
-                    <div class="help-text" style="color: #721c24; margin-top: 4px;">Removes duplicate bookmarks in browser only (no Raindrop changes).</div>
+                    <div class="help-text" style="color: #721c24; margin-top: 4px;">Automatically removes duplicate bookmarks in browser only (no Raindrop changes).</div>
+                </div>
+                <div style="margin: 12px 0;">
+                    <button id="mergeDuplicateFolders" class="button danger" type="button">Merge Duplicate Folders</button>
+                    <div class="help-text" style="color: #721c24; margin-top: 4px;">Automatically finds folders with identical names and merges their contents.</div>
+                </div>
+                <div style="margin: 12px 0;">
+                    <button id="cleanupAndMerge" class="button danger" type="button">Complete Cleanup</button>
+                    <div class="help-text" style="color: #721c24; margin-top: 4px;">Complete automatic cleanup: removes duplicate bookmarks AND merges duplicate folders.</div>
                 </div>
             </div>
 
@@ -1152,6 +1811,46 @@
                 </div>
             </div>
         </div>
+
+        <!-- Backup & Restore Panel -->
+        <div class="section tab-panel" id="tab-backup" data-tab="backup">
+            <h2>Backup & Restore</h2>
+            <p class="help-text">Emergency backup and restore system for bookmark management.</p>
+
+            <!-- Auto Backup History -->
+            <div class="form-group">
+                <h3>Auto Backup History</h3>
+                <div id="autoBackupsList" style="margin: 12px 0; padding: 12px; border: 1px solid #e9ecef; border-radius: 6px; background: #f8f9fa; min-height: 60px;">
+                    <div class="help-text">Your automatic backups are stored locally in the browser.</div>
+                </div>
+                <div style="margin: 12px 0; display: flex; gap: 8px; justify-content: flex-end;">
+                    <button id="refreshAutoBackups" class="button secondary" type="button">Refresh</button>
+                    <button id="clearOldAutoBackups" class="button secondary" type="button">Clear Old</button>
+                </div>
+            </div>
+
+            <!-- Manual Backup & Restore -->
+            <div class="form-group">
+                <h3>Manual Backup & Restore</h3>
+                <div style="margin: 12px 0; display: flex; gap: 8px; justify-content: flex-end; flex-wrap: wrap;">
+                    <button id="createBackup" class="button primary" type="button">Create Backup</button>
+                    <button id="downloadBackupFile" class="button secondary" type="button">Download Backup</button>
+                    <button id="restoreFromBackup" class="button secondary" type="button">Restore from File</button>
+                </div>
+                <input type="file" id="restoreBackupFile" accept=".json" style="display: none;" />
+                <div class="help-text">Create manual backup or restore from a previous backup file.</div>
+            </div>
+
+            <!-- Emergency Actions -->
+            <div class="form-group">
+                <h3 style="color: #dc3545;">Emergency Recovery</h3>
+                <div style="margin: 12px 0; display: flex; gap: 8px; justify-content: flex-end;">
+                    <button id="restoreLastBackup" class="button" style="background: #28a745;" type="button">Restore Latest Auto Backup</button>
+                </div>
+                <div class="help-text" style="color: #721c24;">Use this if sync operations go wrong and you need to quickly restore your bookmarks.</div>
+            </div>
+        </div>
+
         </div> <!-- end tab-content -->
             </div> <!-- end main-content -->
         </div> <!-- end main -->

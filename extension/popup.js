@@ -8,7 +8,6 @@ class PopupUI {
 
   bind() {
     this.$('openSettings').addEventListener('click', () => chrome.runtime.openOptionsPage());
-    this.$('openSettingsSecondary').addEventListener('click', () => chrome.runtime.openOptionsPage());
     this.$('syncNow').addEventListener('click', () => this.syncNow());
     this.$('authenticate').addEventListener('click', () => this.authenticate());
     this.$('logout').addEventListener('click', () => this.logout());
