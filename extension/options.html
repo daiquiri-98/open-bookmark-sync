@@ -573,16 +573,16 @@
             <h2>Raindrop.io API Configuration</h2>
 
             <div class="form-group">
-                <label class="checkbox-label" style="gap:8px; align-items:center; display:flex; opacity:0.6;">
-                    <input type="checkbox" id="managedOAuth" disabled> Use Managed OAuth via Cloudflare (disabled for now)
+                <label class="checkbox-label" style="gap:8px; align-items:center; display:flex;">
+                    <input type="checkbox" id="managedOAuth"> Use Managed OAuth via Cloudflare
                 </label>
-                <div class="help-text">This option is temporarily disabled. Direct OAuth remains available.</div>
+                <div class="help-text">When enabled, the extension delegates OAuth to your Cloudflare Worker.</div>
             </div>
 
-            <div class="form-group" id="managedBaseGroup" style="display:none;">
+            <div class="form-group" id="managedBaseGroup" style="display:block;">
                 <label for="managedOAuthBaseUrl">Managed OAuth Base URL</label>
-                <input type="url" id="managedOAuthBaseUrl" placeholder="https://raindrop-oauth.daiquiri.dev" class="pre-filled" disabled>
-                <div class="help-text">Cloudflare Worker base URL (coming soon)</div>
+                <input type="url" id="managedOAuthBaseUrl" placeholder="https://login-with-raindrop.hello-a71.workers.dev" class="pre-filled">
+                <div class="help-text">Your Worker URL, e.g. https://login-with-raindrop.hello-a71.workers.dev</div>
             </div>
 
             <div class="form-group">

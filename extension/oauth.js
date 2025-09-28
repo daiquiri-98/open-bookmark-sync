@@ -5,8 +5,8 @@ class RaindropOAuth {
     this.AUTHORIZE_URL = 'https://raindrop.io/oauth/authorize';
     this.TOKEN_URL = 'https://raindrop.io/oauth/access_token';
     this.API_BASE = 'https://api.raindrop.io/rest/v1';
-    this.DEFAULT_MANAGED_BASE = 'https://raindrop-oauth.daiquiri.dev';
-    this.MANAGED_ENABLED = false; // temporarily disabled
+    this.DEFAULT_MANAGED_BASE = 'https://login-with-raindrop.hello-a71.workers.dev';
+    this.MANAGED_ENABLED = true;
   }
 
   async startAuthFlow() {

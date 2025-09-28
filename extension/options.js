@@ -146,12 +146,12 @@ class OptionsManager {
       if (config.clientSecret) E.clientSecret.value = config.clientSecret;
       // Force managed OAuth off in UI for now
       if (E.managedOAuth) {
-        E.managedOAuth.checked = false;
-        E.managedOAuth.disabled = true;
+        E.managedOAuth.disabled = false;
+        E.managedOAuth.checked = (config.managedOAuth ?? true);
       }
       if (E.managedOAuthBaseUrl) {
-        E.managedOAuthBaseUrl.value = config.managedOAuthBaseUrl || 'https://raindrop-oauth.daiquiri.dev';
-        E.managedOAuthBaseUrl.disabled = true;
+        E.managedOAuthBaseUrl.disabled = false;
+        E.managedOAuthBaseUrl.value = config.managedOAuthBaseUrl || 'https://login-with-raindrop.hello-a71.workers.dev';
       }
       this.updateManagedUi();
 
@@ -207,12 +207,12 @@ class OptionsManager {
 
   updateManagedUi() {
     const E = this.elements;
-    const managed = false; // Temporarily disabled
+    const managed = !!this.elements.managedOAuth?.checked;
     // Disable ID/Secret when managed is on
     [E.clientId, E.clientSecret].forEach(el => { if (el) { el.disabled = managed; el.classList.toggle('pre-filled', managed); }});
-    if (E.managedOAuthBaseUrl) E.managedOAuthBaseUrl.disabled = true;
+    if (E.managedOAuthBaseUrl) E.managedOAuthBaseUrl.disabled = !managed;
     const baseGroup = document.getElementById('managedBaseGroup');
-    if (baseGroup) baseGroup.style.display = 'none';
+    if (baseGroup) baseGroup.style.display = managed ? 'block' : 'none';
   }
 
   updateAutoSyncInfo(minutes) {
@@ -1170,13 +1170,19 @@ class OptionsManager {
   // ---------- Auth and config actions ----------
   async saveConfiguration() {
     try {
-      const clientId = this.elements.clientId?.value.trim() || '';
-      const clientSecret = this.elements.clientSecret?.value.trim() || '';
-      const managedOAuth = false; // force off for now
-      const managedOAuthBaseUrl = this.elements.managedOAuthBaseUrl?.value.trim() || 'https://raindrop-oauth.daiquiri.dev';
+      const managedOAuth = !!this.elements.managedOAuth?.checked;
+      const managedOAuthBaseUrl = this.elements.managedOAuthBaseUrl?.value.trim() || 'https://login-with-raindrop.hello-a71.workers.dev';
 
-      if (!clientId) return this.showMessage('Client ID is required', 'error');
-      if (!clientSecret) return this.showMessage('Client Secret is required', 'error');
+      let clientId = this.elements.clientId?.value.trim() || '';
+      let clientSecret = this.elements.clientSecret?.value.trim() || '';
+      if (!managedOAuth) {
+        if (!clientId) return this.showMessage('Client ID is required', 'error');
+        if (!clientSecret) return this.showMessage('Client Secret is required', 'error');
+      } else {
+        // In managed mode, we can clear local secrets if previously set
+        clientId = clientId; // optional
+        clientSecret = clientSecret; // optional
+      }
 
       await chrome.storage.sync.set({ clientId, clientSecret, managedOAuth, managedOAuthBaseUrl });
       this.showMessage('Configuration saved successfully', 'success');
