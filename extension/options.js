@@ -18,6 +18,7 @@ class OptionsManager {
       clientSecret: document.getElementById('clientSecret'),
       managedOAuth: document.getElementById('managedOAuth'),
       managedOAuthBaseUrl: document.getElementById('managedOAuthBaseUrl'),
+      managedBaseEdit: document.getElementById('managedBaseEdit'),
       toggleClientId: document.getElementById('toggleClientId'),
       toggleClientSecret: document.getElementById('toggleClientSecret'),
       redirectUri: document.getElementById('redirectUri'),
@@ -62,6 +63,7 @@ class OptionsManager {
     [E.clientId, E.clientSecret, E.managedOAuthBaseUrl].forEach(input => { input && input.addEventListener('input', () => this.saveConfiguration()); });
     // Managed OAuth is disabled in UI; keep handler but will be no-op
     E.managedOAuth && E.managedOAuth.addEventListener('change', () => this.onManagedToggle());
+    E.managedBaseEdit && E.managedBaseEdit.addEventListener('click', () => this.toggleManagedBaseEdit());
 
     E.toggleClientId && E.toggleClientId.addEventListener('click', () => this.toggleSecret(E.clientId, E.toggleClientId));
     E.toggleClientSecret && E.toggleClientSecret.addEventListener('click', () => this.toggleSecret(E.clientSecret, E.toggleClientSecret));
@@ -150,8 +152,11 @@ class OptionsManager {
         E.managedOAuth.checked = (config.managedOAuth ?? false);
       }
       if (E.managedOAuthBaseUrl) {
-        E.managedOAuthBaseUrl.disabled = false;
-        E.managedOAuthBaseUrl.value = config.managedOAuthBaseUrl || 'https://login-with-raindrop.hello-a71.workers.dev';
+        const defaultBase = 'https://login-with-raindrop.hello-a71.workers.dev';
+        E.managedOAuthBaseUrl.value = config.managedOAuthBaseUrl || defaultBase;
+        // Lock by default; can unlock via Edit button
+        E.managedOAuthBaseUrl.disabled = true;
+        if (E.managedBaseEdit) E.managedBaseEdit.textContent = 'Edit';
       }
       this.updateManagedUi();
 
@@ -213,9 +218,18 @@ class OptionsManager {
     const managed = !!this.elements.managedOAuth?.checked;
     // Disable ID/Secret when managed is on
     [E.clientId, E.clientSecret].forEach(el => { if (el) { el.disabled = managed; el.classList.toggle('pre-filled', managed); }});
-    if (E.managedOAuthBaseUrl) E.managedOAuthBaseUrl.disabled = !managed;
+    // Keep base URL field visible but locked by default; user can click Edit to override
     const baseGroup = document.getElementById('managedBaseGroup');
     if (baseGroup) baseGroup.style.display = managed ? 'block' : 'none';
+  }
+
+  toggleManagedBaseEdit() {
+    const input = this.elements.managedOAuthBaseUrl;
+    if (!input) return;
+    input.disabled = !input.disabled; // toggle
+    if (this.elements.managedBaseEdit) {
+      this.elements.managedBaseEdit.textContent = input.disabled ? 'Edit' : 'Lock';
+    }
   }
 
   updateAutoSyncInfo(minutes) {
