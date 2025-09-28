@@ -84,18 +84,18 @@ class RaindropSync {
       collections = (collections || []).filter(c => c && c._id >= 0);
 
       // Use new collection import mode system
-      const mode = collectionImportMode || (topLevelOnly ? 'topLevel' : 'custom');
+      const collectionMode = collectionImportMode || (topLevelOnly ? 'topLevel' : 'custom');
 
-      if (mode === 'topLevel') {
+      if (collectionMode === 'topLevel') {
         // Top-level only mode: import only parent collections
         collections = collections.filter(c => !this.hasParent(c));
         console.log(`Filtered to ${collections.length} top-level collections`);
-      } else if (mode === 'custom' && Array.isArray(selectedCollectionIds) && selectedCollectionIds.length > 0) {
+      } else if (collectionMode === 'custom' && Array.isArray(selectedCollectionIds) && selectedCollectionIds.length > 0) {
         // Manual selection mode: import only selected collections
         const idSet = new Set(selectedCollectionIds.map(String));
         collections = collections.filter(c => idSet.has(String(c._id)));
         console.log(`Filtered to ${collections.length} manually selected collections`);
-      } else if (mode === 'all') {
+      } else if (collectionMode === 'all') {
         // Import all collections including sub-collections
         console.log(`Importing all ${collections.length} collections (including sub-collections)`);
       } else {
@@ -119,7 +119,7 @@ class RaindropSync {
       await this.checkForExtensionUpdate(rootFolderId);
 
       const { twoWayMode } = await chrome.storage.sync.get(['twoWayMode']);
-      const mode = twoWayMode || this.DEFAULT_TWO_WAY_MODE;
+      const syncMode = twoWayMode || this.DEFAULT_TWO_WAY_MODE;
 
       // Use a unified reconciler for all modes.
       // mode:
@@ -127,7 +127,7 @@ class RaindropSync {
       // - additions_only: add missing only, no delete/reorder
       // - off: one-way Raindrop -> Browser (add missing only)
       // - upload_only: one-way Browser -> Raindrop (no local adds)
-      await this.syncCollectionsAtRoot(rootFolderId, collections, { collectionsSort, bookmarksSort, mode });
+      await this.syncCollectionsAtRoot(rootFolderId, collections, { collectionsSort, bookmarksSort, syncMode });
 
       // Update last sync time
       await chrome.storage.sync.set({ lastSyncTime: Date.now() });
@@ -463,7 +463,7 @@ class RaindropSync {
     return finalId;
   }
 
-  async syncCollectionsAtRoot(rootFolderId, collections, { collectionsSort = 'alpha_asc', bookmarksSort = 'created_desc', mode = this.DEFAULT_TWO_WAY_MODE } = {}) {
+  async syncCollectionsAtRoot(rootFolderId, collections, { collectionsSort = 'alpha_asc', bookmarksSort = 'created_desc', syncMode = this.DEFAULT_TWO_WAY_MODE } = {}) {
     try {
       // Build a map of existing folders by title at root
       const existing = await chrome.bookmarks.getChildren(rootFolderId);
@@ -537,7 +537,7 @@ class RaindropSync {
 
         // Create new folder if not found (hierarchical parent support)
         if (!folder) {
-          if (mode === 'upload_only') {
+          if (syncMode === 'upload_only') {
             // Do not create local folders in upload-only mode
             continue;
           }
@@ -554,7 +554,7 @@ class RaindropSync {
         folderMap[String(collection._id)] = folder.id;
         createdFolders.set(collection._id, folder.id);
 
-        await this.reconcileFolderWithCollection(folder.id, collection, rdMap, { bookmarksSort, mode });
+        await this.reconcileFolderWithCollection(folder.id, collection, rdMap, { bookmarksSort, syncMode });
       }
 
       // Persist updated mappings
@@ -564,7 +564,7 @@ class RaindropSync {
       });
 
       // Reorder collection folders relative to each other if requested
-      if (mode === 'mirror' && collectionsSort && collectionsSort !== 'none') {
+      if (syncMode === 'mirror' && collectionsSort && collectionsSort !== 'none') {
         const siblings = await chrome.bookmarks.getChildren(rootFolderId);
         const managed = siblings.filter(n => !n.url && collections.some(c => c.title === n.title));
         const desired = this.sortCollections([...collections], collectionsSort)
@@ -578,7 +578,7 @@ class RaindropSync {
     }
   }
 
-  async reconcileFolderWithCollection(folderId, collection, rdMap, { bookmarksSort = 'created_desc', mode = this.DEFAULT_TWO_WAY_MODE } = {}) {
+  async reconcileFolderWithCollection(folderId, collection, rdMap, { bookmarksSort = 'created_desc', syncMode = this.DEFAULT_TWO_WAY_MODE } = {}) {
 
     // Fetch current folder children
     const children = await chrome.bookmarks.getChildren(folderId);
@@ -594,7 +594,7 @@ class RaindropSync {
     for (const r of remote) { remoteByUrl.set(r.link || r.url, r); remoteById.set(String(r._id), r); }
 
     // 1) Deletions
-    if (mode === 'mirror') {
+    if (syncMode === 'mirror') {
       for (const [raindropId, bookmarkId] of Object.entries(rdMap)) {
         const r = remoteById.get(String(raindropId));
         if (!r) continue; // remote already deleted
@@ -617,7 +617,7 @@ class RaindropSync {
     }
 
     // 2) Ensure every remote raindrop exists locally (create/update)
-    if (mode !== 'upload_only') {
+    if (syncMode !== 'upload_only') {
       // Collect all bookmarks that need to be created for batch processing
       const bookmarksToCreate = [];
       const titleUpdates = [];
@@ -631,7 +631,7 @@ class RaindropSync {
         if (existingBookmarkId && byId.has(existingBookmarkId)) {
           // Already mapped and exists, skip creation
           const existingBookmark = byId.get(existingBookmarkId);
-          if (mode === 'mirror') {
+          if (syncMode === 'mirror') {
             // Update title if changed (mirror mode only)
             const desiredTitle = r.title || url;
             if (existingBookmark.title !== desiredTitle) {
@@ -669,7 +669,7 @@ class RaindropSync {
               });
             }
           }
-        } else if (mode === 'mirror') {
+        } else if (syncMode === 'mirror') {
           // Queue title update for batch processing (mirror mode only)
           const desiredTitle = r.title || url;
           if (b.title !== desiredTitle) {
@@ -752,7 +752,7 @@ class RaindropSync {
     await this.cleanupUnmappedDuplicates(folderId, rdMap);
 
     // 3) Local-only bookmarks -> create in Raindrop
-    if (mode !== 'off') {
+    if (syncMode !== 'off') {
       for (const b of bookmarks) {
         // Skip if mapped or matches a remote URL
         if ([...Object.values(rdMap)].includes(String(b.id))) continue;
@@ -769,7 +769,7 @@ class RaindropSync {
     }
 
     // 4) Reorder within folder according to preference (mirror mode only)
-    if (mode === 'mirror' && bookmarksSort && bookmarksSort !== 'none') {
+    if (syncMode === 'mirror' && bookmarksSort && bookmarksSort !== 'none') {
       await this.reorderBookmarksInFolder(folderId, bookmarksSort, remoteByUrl);
     }
   }
@@ -1246,9 +1246,17 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
   }
 
   if (request.action === 'getAuthStatus') {
+    console.log('🔐 Background: getAuthStatus request received');
     chrome.storage.sync.get(['accessToken'])
-      .then(({ accessToken }) => sendResponse({ authenticated: !!accessToken }))
-      .catch((error) => sendResponse({ authenticated: false, error: error.message }));
+      .then(({ accessToken }) => {
+        const isAuthenticated = !!accessToken;
+        console.log(`🔐 Background: Token exists: ${!!accessToken}, responding with authenticated: ${isAuthenticated}`);
+        sendResponse({ authenticated: isAuthenticated });
+      })
+      .catch((error) => {
+        console.error('🔐 Background: getAuthStatus error:', error);
+        sendResponse({ authenticated: false, error: error.message });
+      });
     return true;
   }
 

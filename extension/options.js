@@ -122,6 +122,7 @@ class OptionsManager {
       emergencyRestore: document.getElementById('emergencyRestore'),
       scanDuplicates: document.getElementById('scanDuplicates'),
       cleanUrlParameters: document.getElementById('cleanUrlParameters'),
+      cleanEmptyFolders: document.getElementById('cleanEmptyFolders'),
       duplicatePreview: document.getElementById('duplicatePreview'),
       duplicateResults: document.getElementById('duplicateResults'),
       autoCleanupSelected: document.getElementById('autoCleanupSelected'),
@@ -231,7 +232,7 @@ class OptionsManager {
     // Backup tab management
     E.refreshAutoBackups && E.refreshAutoBackups.addEventListener('click', () => this.refreshAutoBackups());
     E.clearOldAutoBackups && E.clearOldAutoBackups.addEventListener('click', () => this.clearOldAutoBackups());
-    E.downloadBackupFile && E.downloadBackupFile.addEventListener('click', () => this.downloadLatestBackup());
+    E.downloadBackupFile && E.downloadBackupFile.addEventListener('click', () => this.downloadManualBackup());
     E.restoreFromBackup && E.restoreFromBackup.addEventListener('click', () => this.triggerRestoreBackup());
     E.restoreBackupFile && E.restoreBackupFile.addEventListener('change', (e) => this.handleRestoreBackupFile(e));
     E.restoreLastBackup && E.restoreLastBackup.addEventListener('click', () => this.restoreLastAutoBackup());
@@ -240,6 +241,7 @@ class OptionsManager {
     // Smart cleanup functions
     E.scanDuplicates && E.scanDuplicates.addEventListener('click', () => this.scanForDuplicates());
     E.cleanUrlParameters && E.cleanUrlParameters.addEventListener('click', () => this.cleanUrlParameters());
+    E.cleanEmptyFolders && E.cleanEmptyFolders.addEventListener('click', () => this.cleanEmptyFolders());
     E.autoCleanupSelected && E.autoCleanupSelected.addEventListener('click', () => this.autoCleanupSelected());
     E.manualMergeSelected && E.manualMergeSelected.addEventListener('click', () => this.showManualMergeOptions());
     E.cancelScan && E.cancelScan.addEventListener('click', () => this.cancelDuplicateScan());
@@ -367,10 +369,12 @@ class OptionsManager {
       if (config.clientId) E.clientId.value = config.clientId;
       if (config.clientSecret) E.clientSecret.value = config.clientSecret;
 
-      // Set auth method dropdown
-      const authMethod = config.managedOAuth ?? true ? 'managed' : 'manual';
+      // Set auth method dropdown - default to managed for new installations
+      const authMethod = config.managedOAuth !== false ? 'managed' : 'manual';
       if (E.authMethod) {
         E.authMethod.value = authMethod;
+        // Trigger change event to ensure proper initialization
+        E.authMethod.dispatchEvent(new Event('change', { bubbles: true }));
       }
 
       if (E.managedOAuthBaseUrl) {
@@ -382,6 +386,11 @@ class OptionsManager {
       }
 
       this.updateAuthMethodDisplay(authMethod);
+
+      // Ensure proper initial storage of auth method if not set
+      if (config.managedOAuth === undefined) {
+        await chrome.storage.sync.set({ managedOAuth: true });
+      }
 
       // Load backup time
       if (E.lastBackupTime && config.lastBackupTime) {
@@ -1321,7 +1330,8 @@ class OptionsManager {
     const executeBtn = document.getElementById('executeClear');
 
     if (confirmText && executeBtn) {
-      executeBtn.disabled = confirmText.value !== 'CLEAR ALL';
+      const value = (confirmText.value || '').trim().toUpperCase();
+      executeBtn.disabled = value !== 'CLEAR ALL';
     }
   }
 
@@ -1517,7 +1527,7 @@ class OptionsManager {
       }
 
       // Store backup in local storage with timestamp key
-      const backupKey = `backup_${timestamp.replace(/[:.]/g, '-')}`;
+      const backupKey = this.getAutoBackupKey(timestamp);
       await chrome.storage.local.set({ [backupKey]: backupData });
 
       // Maintain list of backup keys for management
@@ -1568,27 +1578,74 @@ class OptionsManager {
       // Sort by timestamp (newest first)
       validBackups.sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));
 
-      // Generate backup list HTML
-      const backupListHTML = validBackups.map((backup, index) => {
-        const date = new Date(backup.timestamp);
-        const timeAgo = this.timeAgo(date);
+      if (validBackups.length === 0) {
+        autoBackupsList.innerHTML = '<div class="help-text">No valid backups found.</div>';
+        return;
+      }
+
+      autoBackupsList.innerHTML = '';
+      const fragment = document.createDocumentFragment();
+
+      validBackups.forEach((backup) => {
+        const backupDate = this.getBackupDate(backup.timestamp);
+        const dateLabel = backupDate ? backupDate.toLocaleString() : 'Unknown backup date';
+        const timeAgo = backupDate ? this.timeAgo(backupDate) + ' • ' : '';
         const bookmarkCount = this.countBookmarks(backup.bookmarks);
 
-        return `
-          <div class="backup-item" style="display: flex; align-items: center; justify-content: space-between; padding: 8px 12px; border: 1px solid #e9ecef; border-radius: 4px; margin-bottom: 6px; background: #f8f9fa;">
-            <div>
-              <div style="font-weight: 600; font-size: 13px;">${date.toLocaleString()}</div>
-              <div style="font-size: 11px; color: #666;">${timeAgo} • ${bookmarkCount} bookmarks</div>
-            </div>
-            <div style="display: flex; gap: 4px;">
-              <button class="button small" onclick="window.optionsManager.restoreBackup('${backup.timestamp}')" style="font-size: 11px; padding: 4px 8px;">Restore</button>
-              <button class="button secondary small" onclick="window.optionsManager.downloadBackup('${backup.timestamp}')" style="font-size: 11px; padding: 4px 8px;">Download</button>
-            </div>
-          </div>
-        `;
-      }).join('');
+        const item = document.createElement('div');
+        item.className = 'backup-item';
+        item.style.cssText = 'display: flex; align-items: center; justify-content: space-between; padding: 8px 12px; border: 1px solid #e9ecef; border-radius: 4px; margin-bottom: 6px; background: #f8f9fa;';
 
-      autoBackupsList.innerHTML = backupListHTML || '<div class="help-text">No valid backups found.</div>';
+        const details = document.createElement('div');
+
+        const dateLine = document.createElement('div');
+        dateLine.style.cssText = 'font-weight: 600; font-size: 13px;';
+        dateLine.textContent = dateLabel;
+        details.appendChild(dateLine);
+
+        const metaLine = document.createElement('div');
+        metaLine.style.cssText = 'font-size: 11px; color: #666;';
+        metaLine.textContent = `${timeAgo}${bookmarkCount} bookmarks`;
+        details.appendChild(metaLine);
+
+        const actions = document.createElement('div');
+        actions.style.cssText = 'display: flex; gap: 4px;';
+
+        const restoreBtn = document.createElement('button');
+        restoreBtn.className = 'button small';
+        restoreBtn.style.cssText = 'font-size: 11px; padding: 4px 8px;';
+        restoreBtn.textContent = 'Restore';
+        restoreBtn.addEventListener('click', () => {
+          this.restoreBackup(backup.timestamp);
+        });
+
+        const downloadBtn = document.createElement('button');
+        downloadBtn.className = 'button secondary small';
+        downloadBtn.style.cssText = 'font-size: 11px; padding: 4px 8px;';
+        downloadBtn.textContent = 'Download';
+        downloadBtn.addEventListener('click', () => {
+          this.downloadBackup(backup.timestamp);
+        });
+
+        const deleteBtn = document.createElement('button');
+        deleteBtn.className = 'button danger small';
+        deleteBtn.style.cssText = 'font-size: 11px; padding: 4px 8px;';
+        deleteBtn.textContent = 'Delete';
+        deleteBtn.addEventListener('click', () => {
+          this.deleteAutoBackup(backup.timestamp);
+        });
+
+        actions.appendChild(restoreBtn);
+        actions.appendChild(downloadBtn);
+        actions.appendChild(deleteBtn);
+
+        item.appendChild(details);
+        item.appendChild(actions);
+
+        fragment.appendChild(item);
+      });
+
+      autoBackupsList.appendChild(fragment);
 
     } catch (error) {
       console.error('Failed to refresh auto backups:', error);
@@ -1623,9 +1680,76 @@ class OptionsManager {
     return count;
   }
 
+  normalizeBackupTimestamp(timestamp) {
+    if (timestamp instanceof Date) {
+      return timestamp.toISOString();
+    }
+
+    if (typeof timestamp === 'number') {
+      return String(timestamp);
+    }
+
+    if (typeof timestamp === 'string') {
+      return timestamp.trim();
+    }
+
+    if (timestamp && typeof timestamp.toString === 'function') {
+      return timestamp.toString();
+    }
+
+    throw new Error('Invalid backup timestamp');
+  }
+
+  getAutoBackupKey(timestamp) {
+    const normalized = this.normalizeBackupTimestamp(timestamp);
+    if (!normalized) {
+      throw new Error('Backup timestamp missing');
+    }
+    return `backup_${normalized.replace(/[:.]/g, '-')}`;
+  }
+
+  getAutoBackupFilename(timestamp) {
+    const normalized = this.normalizeBackupTimestamp(timestamp);
+    if (!normalized) {
+      throw new Error('Backup timestamp missing');
+    }
+    return `bookmark-backup-${normalized.replace(/[:.]/g, '-')}.json`;
+  }
+
+  getBackupDate(timestamp) {
+    if (timestamp instanceof Date) {
+      return Number.isNaN(timestamp.getTime()) ? null : timestamp;
+    }
+
+    if (typeof timestamp === 'number') {
+      const date = new Date(timestamp);
+      return Number.isNaN(date.getTime()) ? null : date;
+    }
+
+    if (typeof timestamp === 'string') {
+      const trimmed = timestamp.trim();
+      if (!trimmed) {
+        return null;
+      }
+
+      const numeric = Number(trimmed);
+      if (!Number.isNaN(numeric)) {
+        const numericDate = new Date(numeric);
+        if (!Number.isNaN(numericDate.getTime())) {
+          return numericDate;
+        }
+      }
+
+      const parsed = new Date(trimmed);
+      return Number.isNaN(parsed.getTime()) ? null : parsed;
+    }
+
+    return null;
+  }
+
   async restoreBackup(timestamp) {
     try {
-      const backupKey = `backup_${timestamp.replace(/[:.]/g, '-')}`;
+      const backupKey = this.getAutoBackupKey(timestamp);
       const backupData = await chrome.storage.local.get([backupKey]);
       const backup = backupData[backupKey];
 
@@ -1633,7 +1757,9 @@ class OptionsManager {
         throw new Error('Backup data not found or invalid');
       }
 
-      const confirmed = confirm(`⚠️ RESTORE BACKUP CONFIRMATION\n\nThis will:\n• Delete ALL current bookmarks\n• Restore bookmarks from ${new Date(timestamp).toLocaleString()}\n\nThis action cannot be undone. Continue?`);
+      const backupDate = this.getBackupDate(timestamp);
+      const dateLabel = backupDate ? backupDate.toLocaleString() : 'the selected backup';
+      const confirmed = confirm(`⚠️ RESTORE BACKUP CONFIRMATION\n\nThis will:\n• Delete ALL current bookmarks\n• Restore bookmarks from ${dateLabel}\n\nThis action cannot be undone. Continue?`);
       if (!confirmed) return;
 
       // Clear current bookmarks
@@ -1649,9 +1775,35 @@ class OptionsManager {
     }
   }
 
+  async restoreBackup(timestamp) {
+    try {
+      const confirmed = confirm('⚠️ RESTORE FROM AUTO BACKUP\n\nThis will restore bookmarks from the selected automatic backup. Current bookmarks will be merged with backup contents.\n\nProceed with restore?');
+      if (!confirmed) return;
+
+      const backupKey = this.getAutoBackupKey(timestamp);
+      const backupData = await chrome.storage.local.get([backupKey]);
+      const backup = backupData[backupKey];
+
+      if (!backup) {
+        throw new Error('Backup data not found');
+      }
+
+      if (!backup.bookmarks) {
+        throw new Error('Invalid backup format - no bookmark data found');
+      }
+
+      // Restore using the backup data
+      await this.restoreFromBackup(backup);
+      this.showMessage('Auto backup restored successfully!', 'success');
+    } catch (error) {
+      console.error('Auto backup restore failed:', error);
+      this.showMessage('Auto backup restore failed: ' + error.message, 'error');
+    }
+  }
+
   async downloadBackup(timestamp) {
     try {
-      const backupKey = `backup_${timestamp.replace(/[:.]/g, '-')}`;
+      const backupKey = this.getAutoBackupKey(timestamp);
       const backupData = await chrome.storage.local.get([backupKey]);
       const backup = backupData[backupKey];
 
@@ -1663,7 +1815,7 @@ class OptionsManager {
       const url = URL.createObjectURL(blob);
       const a = document.createElement('a');
       a.href = url;
-      a.download = `bookmark-backup-${timestamp.replace(/[:.]/g, '-')}.json`;
+      a.download = this.getAutoBackupFilename(timestamp);
       document.body.appendChild(a);
       a.click();
       document.body.removeChild(a);
@@ -1673,6 +1825,29 @@ class OptionsManager {
     } catch (error) {
       console.error('Backup download failed:', error);
       this.showMessage('Backup download failed: ' + error.message, 'error');
+    }
+  }
+
+  async deleteAutoBackup(timestamp) {
+    try {
+      const confirmed = confirm('🗑️ DELETE AUTO BACKUP\n\nThis will permanently delete the selected backup and remove it from the list.\n\nContinue?');
+      if (!confirmed) return;
+
+      const backupKey = this.getAutoBackupKey(timestamp);
+
+      // Remove backup payload
+      await chrome.storage.local.remove([backupKey]);
+
+      // Update backup keys list
+      const { backupKeys = [] } = await chrome.storage.sync.get(['backupKeys']);
+      const updatedKeys = backupKeys.filter(key => key !== backupKey);
+      await chrome.storage.sync.set({ backupKeys: updatedKeys });
+
+      this.showMessage('Auto backup deleted', 'success');
+      await this.refreshAutoBackups();
+    } catch (error) {
+      console.error('Auto backup delete failed:', error);
+      this.showMessage('Failed to delete backup: ' + error.message, 'error');
     }
   }
 
@@ -1725,8 +1900,12 @@ class OptionsManager {
         return;
       }
 
-      // Extract timestamp and restore
-      await this.restoreBackup(backup.timestamp);
+      // Confirm before restore
+      const confirmed = confirm('⚠️ RESTORE FROM AUTO BACKUP\n\nThis will restore bookmarks from the latest automatic backup. Current bookmarks will be merged with backup contents.\n\nProceed with restore?');
+      if (!confirmed) return;
+
+      // Restore using the backup data
+      await this.restoreFromBackup(backup);
     } catch (error) {
       console.error('Failed to restore latest backup:', error);
       this.showMessage('Failed to restore latest backup: ' + error.message, 'error');
@@ -1904,6 +2083,32 @@ class OptionsManager {
       console.error('Manual merge failed:', error);
       this.showMessage('Manual merge failed: ' + error.message, 'error');
     }
+  }
+
+  async getAllBookmarksRecursively() {
+    const bookmarks = [];
+
+    // Get bookmark tree
+    const bookmarkTree = await chrome.bookmarks.getTree();
+
+    // Recursively find all bookmarks
+    const findBookmarks = (nodes) => {
+      for (const node of nodes) {
+        if (node.url) { // It's a bookmark
+          bookmarks.push({
+            id: node.id,
+            title: node.title,
+            url: node.url,
+            parentId: node.parentId
+          });
+        } else if (node.children) { // It's a folder with children
+          findBookmarks(node.children);
+        }
+      }
+    };
+
+    findBookmarks(bookmarkTree);
+    return bookmarks;
   }
 
   async cleanUrlParameters() {
@@ -2151,6 +2356,204 @@ class OptionsManager {
     }
   }
 
+  async cleanEmptyFolders() {
+    try {
+      const confirmed = confirm('🗂️ CLEAN EMPTY FOLDERS\n\nThis will remove all empty bookmark folders from your browser.\n\nEmpty folders are folders that contain no bookmarks or other folders.\n\nA backup will be created automatically. Continue?');
+      if (!confirmed) return;
+
+      // Create backup first
+      await this.createAutoBackup();
+
+      this.showMessage('Scanning for empty folders...', 'info');
+
+      // Get all empty folders
+      const emptyFolders = await this.findEmptyFolders();
+
+      if (emptyFolders.length === 0) {
+        this.showMessage('No empty folders found! Your bookmark organization is already clean.', 'info');
+        return;
+      }
+
+      // Show preview of folders to be removed
+      this.showEmptyFoldersPreview(emptyFolders);
+
+    } catch (error) {
+      console.error('Empty folder cleanup failed:', error);
+      this.showMessage('Empty folder cleanup failed: ' + error.message, 'error');
+    }
+  }
+
+  async findEmptyFolders() {
+    const emptyFolders = [];
+
+    // Function to recursively check folders
+    async function checkFolder(folderId, folderTitle = '', path = '') {
+      try {
+        const children = await chrome.bookmarks.getChildren(folderId);
+
+        // Filter out bookmarks (items with URL) and count only folders
+        const subfolders = children.filter(child => !child.url);
+        const bookmarks = children.filter(child => child.url);
+
+        // If this folder has no bookmarks and no subfolders, it's empty
+        if (bookmarks.length === 0 && subfolders.length === 0) {
+          // Don't remove root folders (Bookmarks Bar, Other Bookmarks, Mobile)
+          if (!['1', '2', '3'].includes(folderId)) {
+            emptyFolders.push({
+              id: folderId,
+              title: folderTitle,
+              path: path
+            });
+          }
+          return;
+        }
+
+        // Recursively check subfolders
+        for (const subfolder of subfolders) {
+          const currentPath = path ? `${path} > ${subfolder.title}` : subfolder.title;
+          await checkFolder(subfolder.id, subfolder.title, currentPath);
+        }
+
+        // After checking subfolders, check if this folder became empty
+        // (in case all its subfolders were removed)
+        const updatedChildren = await chrome.bookmarks.getChildren(folderId);
+        const updatedSubfolders = updatedChildren.filter(child => !child.url);
+        const updatedBookmarks = updatedChildren.filter(child => child.url);
+
+        if (updatedBookmarks.length === 0 && updatedSubfolders.length === 0) {
+          if (!['1', '2', '3'].includes(folderId)) {
+            // Check if already added to avoid duplicates
+            if (!emptyFolders.some(folder => folder.id === folderId)) {
+              emptyFolders.push({
+                id: folderId,
+                title: folderTitle,
+                path: path
+              });
+            }
+          }
+        }
+
+      } catch (error) {
+        console.warn('Failed to check folder:', folderId, error);
+      }
+    }
+
+    // Start from root folders
+    const rootFolders = ['1', '2', '3']; // Bookmarks Bar, Other Bookmarks, Mobile
+    for (const rootId of rootFolders) {
+      try {
+        const rootChildren = await chrome.bookmarks.getChildren(rootId);
+        for (const child of rootChildren) {
+          if (!child.url) { // It's a folder
+            await checkFolder(child.id, child.title, child.title);
+          }
+        }
+      } catch (error) {
+        console.warn('Failed to scan root folder:', rootId, error);
+      }
+    }
+
+    return emptyFolders;
+  }
+
+  showEmptyFoldersPreview(emptyFolders) {
+    const duplicateResults = this.elements.duplicateResults;
+    if (!duplicateResults) return;
+
+    let previewHTML = `
+      <div style="margin: 12px 0;">
+        <h4>🗂️ Empty Folders Cleanup Preview</h4>
+        <div class="help-text" style="margin-bottom: 12px;">
+          Found ${emptyFolders.length} empty folder(s) to remove.
+        </div>
+      </div>
+    `;
+
+    // Show folders to be removed
+    previewHTML += '<div style="max-height: 300px; overflow-y: auto; border: 1px solid #e9ecef; border-radius: 4px; padding: 8px; background: #f8f9fa; margin-bottom: 12px;">';
+
+    emptyFolders.forEach((folder, index) => {
+      previewHTML += `
+        <div style="margin: 6px 0; padding: 8px; background: white; border-radius: 4px; border: 1px solid #dee2e6; display: flex; align-items: center; gap: 8px;">
+          <span style="font-size: 16px;">📁</span>
+          <div>
+            <div style="font-weight: 600; font-size: 13px;">${folder.title}</div>
+            <div style="font-size: 11px; color: #666;">${folder.path}</div>
+          </div>
+        </div>
+      `;
+    });
+
+    previewHTML += '</div>';
+
+    previewHTML += `
+      <div style="margin-top: 16px; display: flex; gap: 8px; flex-wrap: wrap;">
+        <button id="executeEmptyFolderCleaning" class="button" type="button">Remove All Empty Folders (${emptyFolders.length})</button>
+        <button id="cancelEmptyFolderCleaning" class="button secondary" type="button">Cancel</button>
+      </div>
+    `;
+
+    duplicateResults.innerHTML = previewHTML;
+    this.elements.duplicatePreview.classList.remove('hidden');
+
+    // Store empty folders for execution
+    this._emptyFolders = emptyFolders;
+
+    // Add event listeners
+    document.getElementById('executeEmptyFolderCleaning')?.addEventListener('click', () => this.executeEmptyFolderCleaning());
+    document.getElementById('cancelEmptyFolderCleaning')?.addEventListener('click', () => this.cancelDuplicateScan());
+  }
+
+  async executeEmptyFolderCleaning() {
+    try {
+      if (!this._emptyFolders || this._emptyFolders.length === 0) {
+        this.showMessage('No empty folders to remove', 'error');
+        return;
+      }
+
+      this.showMessage(`Removing ${this._emptyFolders.length} empty folders...`, 'info');
+
+      let successCount = 0;
+      let errorCount = 0;
+
+      // Sort by path depth (deepest first) to avoid removing parent before child
+      const sortedFolders = [...this._emptyFolders].sort((a, b) => {
+        const depthA = (a.path.match(/>/g) || []).length;
+        const depthB = (b.path.match(/>/g) || []).length;
+        return depthB - depthA; // Reverse order (deepest first)
+      });
+
+      for (const folder of sortedFolders) {
+        try {
+          // Double-check that folder is still empty before removing
+          const children = await chrome.bookmarks.getChildren(folder.id);
+          if (children.length === 0) {
+            await chrome.bookmarks.removeTree(folder.id);
+            successCount++;
+          }
+        } catch (error) {
+          console.warn('Failed to remove folder:', folder.id, error);
+          errorCount++;
+        }
+      }
+
+      // Clear the stored data
+      delete this._emptyFolders;
+
+      if (errorCount === 0) {
+        this.showMessage(`✅ Successfully removed ${successCount} empty folders! Your bookmarks are now cleaner.`, 'success');
+      } else {
+        this.showMessage(`Partially completed: ${successCount} removed, ${errorCount} failed.`, 'warning');
+      }
+
+      this.cancelDuplicateScan();
+
+    } catch (error) {
+      console.error('Empty folder cleanup execution failed:', error);
+      this.showMessage('Empty folder cleanup failed: ' + error.message, 'error');
+    }
+  }
+
   triggerRestoreFile() {
     if (this.elements.restoreFile) {
       this.elements.restoreFile.click();
@@ -2241,6 +2644,85 @@ class OptionsManager {
       }
     };
     input.click();
+  }
+
+  triggerRestoreBackup() {
+    if (this.elements.restoreBackupFile) {
+      this.elements.restoreBackupFile.click();
+    }
+  }
+
+  async downloadManualBackup() {
+    try {
+      const btn = this.elements.downloadBackupFile;
+      if (btn) {
+        btn.disabled = true;
+        btn.textContent = 'Creating...';
+      }
+
+      await this.backupBookmarks();
+
+      if (btn) {
+        btn.textContent = '✓ Downloaded';
+        btn.style.backgroundColor = '#28a745';
+        btn.style.color = 'white';
+
+        setTimeout(() => {
+          btn.textContent = 'Download Backup';
+          btn.style.backgroundColor = '';
+          btn.style.color = '';
+          btn.disabled = false;
+        }, 2000);
+      }
+    } catch (error) {
+      console.error('Manual backup download failed:', error);
+      this.showMessage('Manual backup failed: ' + error.message, 'error');
+
+      const btn = this.elements.downloadBackupFile;
+      if (btn) {
+        btn.disabled = false;
+        btn.textContent = 'Download Backup';
+        btn.style.backgroundColor = '';
+        btn.style.color = '';
+      }
+    }
+  }
+
+  async downloadLatestBackup() {
+    try {
+      const { backupKeys = [] } = await chrome.storage.sync.get(['backupKeys']);
+
+      if (backupKeys.length === 0) {
+        this.showMessage('No automatic backups available to download', 'error');
+        return;
+      }
+
+      // Get the most recent backup
+      const latestBackupKey = backupKeys[backupKeys.length - 1];
+      const backupData = await chrome.storage.local.get([latestBackupKey]);
+      const backup = backupData[latestBackupKey];
+
+      if (!backup) {
+        this.showMessage('Latest backup data not found', 'error');
+        return;
+      }
+
+      // Create and download the file
+      const blob = new Blob([JSON.stringify(backup, null, 2)], { type: 'application/json' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `latest-auto-backup-${new Date().toISOString().slice(0,19).replace(/:/g, '-')}.json`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+
+      this.showMessage('Latest backup downloaded successfully', 'success');
+    } catch (error) {
+      console.error('Download latest backup failed:', error);
+      this.showMessage('Download failed: ' + error.message, 'error');
+    }
   }
 
   async restoreFromBackup(backupData) {
@@ -2952,7 +3434,7 @@ class OptionsManager {
   async authenticateManaged() {
     try {
       this.clearMessages(); // Clear any previous messages
-      this.setButtonLoading(this.elements.authenticateManaged, true);
+      this.setButtonLoading(this.elements.authenticateBtn, true);
       this.setAuthStatus('Connecting...', 'Initializing Cloudflare authentication', true);
       this.showProgress(true, 10, 'Starting authentication flow...');
 
@@ -2963,15 +3445,29 @@ class OptionsManager {
       }
 
       this.showProgress(true, 30, 'Redirecting to authentication...');
+
+      console.log('🔐 Starting managed OAuth flow...');
       const res = await this.oauth.startAuthFlow();
+      console.log('🔐 OAuth flow result:', res);
 
       this.showProgress(true, 80, 'Processing authentication response...');
 
       if (res?.success) {
         this.showProgress(true, 100, 'Authentication successful!');
         this.showMessage('Managed authentication successful!', 'success');
-        await this.updateAuthStatus();
-        await this.loadUserInfo();
+
+        console.log('🔐 Auth successful, checking token storage...');
+
+        // Immediately check if tokens were saved
+        const { accessToken } = await chrome.storage.sync.get(['accessToken']);
+        console.log('🔐 Token in storage after auth:', !!accessToken);
+
+        // Wait a bit for tokens to be saved to storage, then update status
+        setTimeout(async () => {
+          console.log('🔐 Starting auth status update with retry...');
+          await this.updateAuthStatusWithRetry();
+          await this.loadUserInfo();
+        }, 500);
       } else {
         this.showMessage('Managed authentication failed', 'error');
         this.setAuthStatus('Authentication failed', 'Please try again or use manual mode');
@@ -2989,7 +3485,7 @@ class OptionsManager {
       // Fallback suggestion
       await this.suggestFallbackAuth('managed-to-manual', e.message);
     } finally {
-      this.setButtonLoading(this.elements.authenticateManaged, false);
+      this.setButtonLoading(this.elements.authenticateBtn, false);
       this.showProgress(false);
     }
   }
@@ -2997,7 +3493,7 @@ class OptionsManager {
   async authenticateManual() {
     try {
       this.clearMessages(); // Clear any previous messages
-      this.setButtonLoading(this.elements.authenticateManual, true);
+      this.setButtonLoading(this.elements.authenticateBtn, true);
       this.setAuthStatus('Validating...', 'Checking credentials', true);
       this.showProgress(true, 10, 'Validating configuration...');
 
@@ -3029,8 +3525,12 @@ class OptionsManager {
       if (res?.success) {
         this.showProgress(true, 100, 'Authentication complete!');
         this.showMessage('Manual authentication successful!', 'success');
-        await this.updateAuthStatus();
-        await this.loadUserInfo();
+
+        // Wait a bit for tokens to be saved to storage, then update status
+        setTimeout(async () => {
+          await this.updateAuthStatusWithRetry();
+          await this.loadUserInfo();
+        }, 500);
       } else {
         this.showMessage('Manual authentication failed', 'error');
         this.setAuthStatus('Authentication failed', 'Check your credentials and try again');
@@ -3040,7 +3540,7 @@ class OptionsManager {
       this.showDetailedError('Manual Authentication Failed', e.message, suggestions);
       this.setAuthStatus('Authentication error', e.message);
     } finally {
-      this.setButtonLoading(this.elements.authenticateManual, false);
+      this.setButtonLoading(this.elements.authenticateBtn, false);
       this.showProgress(false);
     }
   }
@@ -3087,7 +3587,22 @@ class OptionsManager {
 
   async updateAuthStatus() {
     try {
-      const { authenticated } = await chrome.runtime.sendMessage({ action: 'getAuthStatus' });
+      // Check storage first for immediate feedback
+      const { accessToken } = await chrome.storage.sync.get(['accessToken']);
+
+      let authenticated = false;
+      try {
+        const response = await Promise.race([
+          chrome.runtime.sendMessage({ action: 'getAuthStatus' }),
+          new Promise((_, reject) => setTimeout(() => reject(new Error('Background script timeout')), 3000))
+        ]);
+        authenticated = response?.authenticated || false;
+      } catch (bgError) {
+        console.warn('Background script communication failed, using storage fallback:', bgError);
+        // Fallback to storage check
+        authenticated = !!accessToken;
+      }
+
       const isAuth = !!authenticated;
       if (isAuth) {
         if (this.elements.statusIndicator) this.elements.statusIndicator.className = 'status-indicator connected';
@@ -3105,6 +3620,66 @@ class OptionsManager {
     } catch (e) {
       if (this.elements.statusIndicator) this.elements.statusIndicator.className = 'status-indicator disconnected';
       if (this.elements.authStatusText) this.elements.authStatusText.textContent = 'Status unknown';
+    }
+  }
+
+  async updateAuthStatusWithRetry(maxRetries = 3, delay = 1000) {
+    console.log(`🔐 Starting auth status retry (${maxRetries} attempts)`);
+
+    for (let i = 0; i < maxRetries; i++) {
+      try {
+        console.log(`🔐 Auth status attempt ${i + 1}/${maxRetries}`);
+
+        // Also check storage directly
+        const { accessToken } = await chrome.storage.sync.get(['accessToken']);
+        console.log(`🔐 Storage check - Token exists: ${!!accessToken}`);
+
+        // Add timeout to background script communication
+        let authenticated = false;
+        try {
+          const response = await Promise.race([
+            chrome.runtime.sendMessage({ action: 'getAuthStatus' }),
+            new Promise((_, reject) => setTimeout(() => reject(new Error('Background script timeout')), 5000))
+          ]);
+          authenticated = response?.authenticated || false;
+          console.log(`🔐 Background script response - Authenticated: ${authenticated}`);
+        } catch (bgError) {
+          console.warn(`🔐 Background script communication failed:`, bgError);
+          // Fallback: if we have token in storage, assume authenticated
+          if (accessToken) {
+            console.log(`🔐 Fallback: Token exists in storage, assuming authenticated`);
+            authenticated = true;
+          }
+        }
+
+        if (authenticated) {
+          // Success! Update the UI
+          console.log('🔐 Auth status confirmed - updating UI to connected state');
+          if (this.elements.statusIndicator) this.elements.statusIndicator.className = 'status-indicator connected';
+          if (this.elements.authStatusText) this.elements.authStatusText.textContent = 'Connected';
+          if (this.elements.logout) this.elements.logout.classList.remove('hidden');
+          if (this.elements.syncNow) this.elements.syncNow.disabled = false;
+          return;
+        } else if (i === maxRetries - 1) {
+          // Final attempt failed
+          console.log('🔐 Final attempt failed - token exists but background says not authenticated');
+          if (this.elements.statusIndicator) this.elements.statusIndicator.className = 'status-indicator disconnected';
+          if (this.elements.authStatusText) this.elements.authStatusText.textContent = 'Connection failed';
+          this.showMessage('Authentication completed but connection failed. Please try refreshing the page.', 'warning');
+        }
+      } catch (e) {
+        console.warn(`🔐 Auth status check attempt ${i + 1} failed:`, e);
+        if (i === maxRetries - 1) {
+          if (this.elements.statusIndicator) this.elements.statusIndicator.className = 'status-indicator disconnected';
+          if (this.elements.authStatusText) this.elements.authStatusText.textContent = 'Status unknown';
+        }
+      }
+
+      // Wait before next retry (except on last attempt)
+      if (i < maxRetries - 1) {
+        console.log(`🔐 Waiting ${delay}ms before next attempt...`);
+        await new Promise(resolve => setTimeout(resolve, delay));
+      }
     }
   }
 
@@ -4591,14 +5166,14 @@ class OptionsManager {
     const el = this.elements.themePreview; if (!el) return;
     const id = this.elements.themeSelect?.value || 'default';
     const palettes = {
-      default: ['#007cba', '#006ba3', '#005a87'],
-      gold: ['#DBDBDB','#F0A500','#CF7500','#000000'],
-      fire: ['#FF6107','#E9290F','#C40018','#292725'],
-      purpleIndigo: ['#4B49AC','#98BDFF','#7DA0FA','#7978E9','#F3797E'],
-      lunaBlue: ['#A7EBF2','#54ACBF','#26658C','#023859','#011C40'],
-      roseTwilight: ['#C38EB4','#E1CBD7','#66A8CF','#26425A','#262C47'],
-      dustyRose: ['#765D67','#6D3C52','#4B2138','#1B0C1A','#2D222F','#FADCD5'],
-      pastelOcean: ['#E9A27C','#E7B8A6','#8CBEBC','#0E8992','#0D313A']
+      default: ['#2563eb', '#1d4ed8', '#1e40af'],
+      nordic: ['#5e81ac', '#4c566a', '#434c5e'],
+      emerald: ['#059669', '#047857', '#065f46'],
+      sunset: ['#ea580c', '#c2410c', '#9a3412'],
+      lavender: ['#8b5cf6', '#7c3aed', '#6d28d9'],
+      rose: ['#e11d48', '#be123c', '#9f1239'],
+      slate: ['#475569', '#334155', '#1e293b'],
+      cyber: ['#06b6d4', '#0891b2', '#0e7490']
     };
     const arr = palettes[id] || palettes.default;
     el.innerHTML = arr.map(c => `<span style="display:inline-block;width:14px;height:14px;border-radius:50%;background:${c};border:1px solid rgba(0,0,0,0.15);"></span>`).join('');
