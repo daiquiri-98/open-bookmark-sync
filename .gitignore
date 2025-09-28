@@ -15,4 +15,7 @@ Thumbs.db
 # Node
 node_modules/
 
+# Secrets
+session-secret.md
+
 # (intentionally left minimal; no project docs ignored)
