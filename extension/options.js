@@ -13,6 +13,9 @@ class OptionsManager {
     const initialTab = document.querySelector('.tab-btn.active')?.dataset.tab || 'api';
     this.showTab(initialTab);
     this.startTokenHealthCheck();
+
+    // Auto-check Worker status on load
+    setTimeout(() => this.autoCheckWorker(), 1000);
   }
 
   initializeElements() {
@@ -36,8 +39,11 @@ class OptionsManager {
       saveConfig: document.getElementById('saveConfig'),
       authenticateManaged: document.getElementById('authenticateManaged'),
       authenticateManual: document.getElementById('authenticateManual'),
-      managedAuthSection: document.getElementById('managedAuthSection'),
       manualAuthSection: document.getElementById('manualAuthSection'),
+      manualConfigSection: document.getElementById('manualConfigSection'),
+      toggleManualConfig: document.getElementById('toggleManualConfig'),
+      closePrivacyNotice: document.getElementById('closePrivacyNotice'),
+      privacyNotice: document.getElementById('privacyNotice'),
       authStatus: document.getElementById('authStatus'),
       statusDetails: document.getElementById('statusDetails'),
       authProgress: document.getElementById('authProgress'),
@@ -83,7 +89,8 @@ class OptionsManager {
     // Managed OAuth is disabled in UI; keep handler but will be no-op
     E.managedOAuth && E.managedOAuth.addEventListener('change', () => this.onManagedToggle());
     E.managedBaseEdit && E.managedBaseEdit.addEventListener('click', () => this.toggleManagedBaseEdit());
-    E.checkWorker && E.checkWorker.addEventListener('click', () => this.checkWorker());
+    E.toggleManualConfig && E.toggleManualConfig.addEventListener('click', () => this.toggleManualConfig());
+    E.closePrivacyNotice && E.closePrivacyNotice.addEventListener('click', () => this.closePrivacyNotice());
     E.redirectReset && E.redirectReset.addEventListener('click', () => this.resetRedirectUri());
     E.redirectUri && E.redirectUri.addEventListener('input', () => this.validateRedirectUri());
     E.viewAuthState && E.viewAuthState.addEventListener('click', () => this.viewAuthState());
@@ -370,19 +377,44 @@ class OptionsManager {
     const E = this.elements;
     const managed = !!this.elements.managedOAuth?.checked;
 
-    // Show/hide appropriate auth sections
-    if (E.managedAuthSection) {
-      E.managedAuthSection.classList.toggle('hidden', !managed);
-    }
-    if (E.manualAuthSection) {
-      E.manualAuthSection.classList.toggle('hidden', managed);
-    }
-
-    // Disable ID/Secret when managed is on
-    [E.clientId, E.clientSecret].forEach(el => { if (el) { el.disabled = managed; el.classList.toggle('pre-filled', managed); }});
-    // Keep base URL field visible but locked by default; user can click Edit to override
+    // Always show managed base URL when managed is on
     const baseGroup = document.getElementById('managedBaseGroup');
     if (baseGroup) baseGroup.style.display = managed ? 'block' : 'none';
+  }
+
+  toggleManualConfig() {
+    const isHidden = this.elements.manualConfigSection?.classList.contains('hidden');
+
+    if (this.elements.manualConfigSection) {
+      this.elements.manualConfigSection.classList.toggle('hidden');
+    }
+
+    if (this.elements.toggleManualConfig) {
+      this.elements.toggleManualConfig.textContent = isHidden
+        ? 'Hide'
+        : 'Show';
+    }
+  }
+
+  closePrivacyNotice() {
+    if (this.elements.privacyNotice) {
+      this.elements.privacyNotice.style.display = 'none';
+    }
+  }
+
+  async autoCheckWorker() {
+    // Only check if managed OAuth is enabled and we have a base URL
+    const { managedOAuth } = await chrome.storage.sync.get(['managedOAuth']);
+    if (!managedOAuth) return;
+
+    const baseUrl = this.elements.managedOAuthBaseUrl?.value;
+    if (!baseUrl) return;
+
+    try {
+      await this.checkWorker();
+    } catch (error) {
+      console.log('Auto Worker check failed:', error);
+    }
   }
 
   toggleManagedBaseEdit() {
@@ -1410,6 +1442,11 @@ class OptionsManager {
       this.showDetailedError('Managed Authentication Failed', e.message, suggestions);
       this.setAuthStatus('Authentication error', e.message);
 
+      // Show manual auth section for fallback
+      if (this.elements.manualAuthSection) {
+        this.elements.manualAuthSection.classList.remove('hidden');
+      }
+
       // Fallback suggestion
       await this.suggestFallbackAuth('managed-to-manual', e.message);
     } finally {
@@ -1535,17 +1572,31 @@ class OptionsManager {
   async loadUserInfo() {
     try {
       const result = await this.oauth.testConnection();
-      if (result?.success && result.user && this.elements.userInfo) {
-        this.elements.userInfo.innerHTML = `
-          <div>Connected as: <strong>${result.user.name || result.user.email || 'Unknown'}</strong></div>
-          ${result.user.email ? `<div>Email: ${result.user.email}</div>` : ''}
-        `;
-        this.elements.userInfo.classList.remove('hidden');
+      if (result?.success && result.user) {
+        const userName = result.user.name || 'Unknown';
+        const userEmail = result.user.email || '';
+        // Update authStatusText to include user info on same line
+        if (this.elements.authStatusText) {
+          this.elements.authStatusText.innerHTML = `Connected as: <strong>${userName}</strong>${userEmail ? ` (${userEmail})` : ''}`;
+        }
+        // Hide the separate userInfo section since we're showing it inline
+        if (this.elements.userInfo) {
+          this.elements.userInfo.classList.add('hidden');
+        }
       }
     } catch (_) {}
   }
 
-  clearUserInfo() { if (this.elements.userInfo) { this.elements.userInfo.classList.add('hidden'); this.elements.userInfo.innerHTML = ''; } }
+  clearUserInfo() {
+    if (this.elements.userInfo) {
+      this.elements.userInfo.classList.add('hidden');
+      this.elements.userInfo.innerHTML = '';
+    }
+    // Also reset authStatusText when clearing user info
+    if (this.elements.authStatusText) {
+      this.elements.authStatusText.textContent = 'Not authenticated';
+    }
+  }
 
   showMessage(message, type = 'info', priority = 'normal') {
     const messageObj = { message, type, priority, id: Date.now() };

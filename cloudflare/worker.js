@@ -141,10 +141,30 @@ export default {
     if (!sessionCode) {
       return this._cors(new Response(JSON.stringify({ error: 'missing_param', param: 'session_code' }), { status: 400, headers: { 'Content-Type': 'application/json' } }));
     }
-    const payload = await this._verifySessionCode(sessionCode, env.SESSION_SECRET).catch(() => null);
+
+    console.log('_authFetch: sessionCode received:', sessionCode.substring(0, 20) + '...');
+
+    let payload;
+    try {
+      payload = await this._verifySessionCode(sessionCode, env.SESSION_SECRET);
+      console.log('_authFetch: payload verified:', payload);
+    } catch (error) {
+      console.log('_authFetch: verification error:', error.message);
+      return this._cors(new Response(JSON.stringify({ error: 'invalid_session_code', details: error.message }), { status: 400, headers: { 'Content-Type': 'application/json' } }));
+    }
+
     if (!payload) {
+      console.log('_authFetch: payload is null/undefined');
       return this._cors(new Response(JSON.stringify({ error: 'invalid_session_code' }), { status: 400, headers: { 'Content-Type': 'application/json' } }));
     }
+
+    // Ensure we have required fields
+    if (!payload.access_token) {
+      console.log('_authFetch: payload missing access_token:', payload);
+      return this._cors(new Response(JSON.stringify({ error: 'invalid_payload', payload }), { status: 400, headers: { 'Content-Type': 'application/json' } }));
+    }
+
+    console.log('_authFetch: returning payload with access_token');
     return this._cors(new Response(JSON.stringify(payload), { status: 200, headers: { 'Content-Type': 'application/json' } }));
   },
 

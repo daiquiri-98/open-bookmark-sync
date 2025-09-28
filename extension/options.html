@@ -6,7 +6,7 @@
     <title>Open Bookmark Sync - Settings</title>
     <style>
         :root {
-            --control-h: 40px;
+            --control-h: 35px;
             --space-1: 8px;
             --space-2: 13px; /* ~8 * 1.618 */
             --space-3: 21px; /* ~13 * 1.618 */
@@ -23,7 +23,7 @@
             margin: 0;
             padding: 16px;
             background-color: #f5f5f5;
-            font-size: 14px;
+            font-size: 13px;
             line-height: 1.55;
             color: var(--text);
         }
@@ -54,7 +54,7 @@
 
         h3 {
             color: var(--text);
-            font-size: 14px;
+            font-size: 13px;
             margin: var(--space-2) 0 var(--space-1) 0;
             font-weight: 600;
         }
@@ -79,7 +79,7 @@
             padding: 0 10px;
             border: 1px solid #d7dbe2;
             border-radius: 4px;
-            font-size: 14px;
+            font-size: 13px;
             box-sizing: border-box;
         }
 
@@ -101,7 +101,7 @@
             padding: 0 10px;
             border: 1px solid #d7dbe2;
             border-radius: 4px;
-            font-size: 14px;
+            font-size: 13px;
             box-sizing: border-box;
             -moz-appearance: textfield;
         }
@@ -128,7 +128,7 @@
             padding: 0 16px;
             border-radius: 4px;
             cursor: pointer;
-            font-size: 14px;
+            font-size: 13px;
             font-weight: 500;
             display: inline-flex; align-items: center; justify-content: center;
         }
@@ -210,7 +210,7 @@
         }
 
         .sync-info {
-            font-size: 14px;
+            font-size: 13px;
             color: #666;
             margin-top: 8px;
         }
@@ -294,7 +294,7 @@
             padding: 0 10px;
             border: 1px solid #d7dbe2;
             border-radius: 4px;
-            font-size: 14px;
+            font-size: 13px;
             box-sizing: border-box;
         }
 
@@ -707,7 +707,7 @@
                 </div>
                 <div class="sidebar-section">
                     <div class="sidebar-title">Resources</div>
-                    <button class="side-link" data-tab="support">Get Help</button>
+                    <button class="side-link" data-tab="support">Support</button>
                     <button class="side-link" data-tab="roadmap">Roadmap</button>
                     <button class="side-link" data-tab="bmc">Buy Me a Coffee</button>
                 </div>
@@ -715,12 +715,28 @@
             <div class="main-content">
                 <div class="tab-content">
         <div id="statusMessage" class="status hidden" style="position: sticky; top: 0; z-index: 5; margin: 0 0 10px 0;"></div>
+
+        <!-- Closeable Privacy Notice -->
+        <div id="privacyNotice" class="section" style="border: 1px solid #e8f4f8; background: #f8fcff; margin-bottom: 16px; display: block;">
+            <div style="display: flex; align-items: flex-start; justify-content: space-between;">
+                <div>
+                    <h3 style="margin: 0 0 8px 0; color: #0066cc;">🔒 Privacy & Security</h3>
+                    <div class="help-text" style="margin: 0;">
+                        <strong>No telemetry or tracking:</strong> This extension does not collect any usage data, analytics, or personal information.
+                        All data stays on your device and your chosen sync service (Raindrop.io).
+                        Authentication tokens are stored locally in Chrome's secure storage.
+                    </div>
+                </div>
+                <button id="closePrivacyNotice" type="button" style="background: none; border: none; font-size: 18px; color: #666; cursor: pointer; padding: 4px; margin-left: 12px;" title="Close privacy notice">×</button>
+            </div>
+        </div>
+
         <div class="section tab-panel active" id="tab-api" data-tab="api">
             <h2>Raindrop.io API Configuration</h2>
 
             <div class="form-group">
                 <label class="checkbox-label" style="gap:8px; align-items:center; display:flex;">
-                    <input type="checkbox" id="managedOAuth"> Use Managed OAuth via Cloudflare
+                    <input type="checkbox" id="managedOAuth"> Use Managed OAuth
                     <span class="tooltip">
                         <span style="cursor: help;">ℹ️</span>
                         <span class="tooltiptext">Safer authentication method that keeps your Client Secret secure on Cloudflare servers instead of in the browser extension</span>
@@ -730,47 +746,21 @@
             </div>
 
             <div class="form-group" id="managedBaseGroup" style="display:block;">
-                <label for="managedOAuthBaseUrl">Managed OAuth Base URL</label>
+                <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 6px;">
+                    <label for="managedOAuthBaseUrl" style="margin: 0;">Managed OAuth Base URL</label>
+                    <div id="workerStatusContainer">
+                        <span id="workerStatus" class="help-text"></span>
+                    </div>
+                </div>
                 <div class="input-row">
                     <input type="url" id="managedOAuthBaseUrl" placeholder="https://rdoauth.daiquiri.dev" class="pre-filled" disabled>
                     <button id="managedBaseEdit" type="button" class="toggle-eye" aria-label="Edit base URL">Edit</button>
                 </div>
-                <div class="help-text">Default is locked. Click Edit for manual override (beta/testing).</div>
-                <div style="margin-top:8px; display:flex; gap:8px; align-items:center;">
-                    <button id="checkWorker" class="button secondary" type="button">Check Worker</button>
-                    <span id="workerStatus" class="help-text"></span>
+                <div class="help-text">
+                    <strong>OAuth Service URL:</strong> This is the backend authentication service. Visiting it directly shows "not found" - this is normal and expected.
+                    The extension communicates with this service automatically during authentication. Default is locked; click Edit for manual override (beta/testing).
                 </div>
             </div>
-
-            <div class="form-group">
-                <label for="clientId">Client ID</label>
-                <div class="input-row">
-                    <input type="password" id="clientId" placeholder="Enter your Raindrop Client ID">
-                    <button id="toggleClientId" type="button" class="toggle-eye" aria-label="Show/Hide">Show</button>
-                </div>
-                <div class="help-text">Stored locally via Chrome storage. Hidden by default for privacy.</div>
-            </div>
-
-            <div class="form-group">
-                <label for="clientSecret">Client Secret</label>
-                <div class="input-row">
-                    <input type="password" id="clientSecret" placeholder="Enter your Raindrop Client Secret">
-                    <button id="toggleClientSecret" type="button" class="toggle-eye" aria-label="Show/Hide">Show</button>
-                </div>
-                <div class="help-text">Do not share your client secret.</div>
-            </div>
-
-            <div class="form-group">
-                <label for="redirectUri">Redirect URI</label>
-                <div class="input-row">
-                    <input type="url" id="redirectUri" class="pre-filled" placeholder="Extension identity redirect (auto)">
-                    <button id="redirectReset" type="button" class="toggle-eye" aria-label="Reset to default">Reset</button>
-                </div>
-                <div class="help-text">Default is the extension identity URL (auto). You can override this for beta testing; ensure it matches what you registered in Raindrop.</div>
-                <div id="redirectHint" class="help-text" style="margin-top:6px;"></div>
-            </div>
-
-            <button id="saveConfig" class="button">Save Configuration</button>
 
             <h2>Authentication</h2>
             <div class="auth-status" id="authStatus">
@@ -782,22 +772,68 @@
                 </div>
             </div>
             <div style="display: flex; gap: 8px; flex-wrap: wrap; align-items: center;">
-                <div id="managedAuthSection" class="hidden">
-                    <div class="tooltip">
-                        <button id="authenticateManaged" class="button">Authenticate via Cloudflare (Managed)</button>
-                        <span class="tooltiptext">Secure authentication through your Cloudflare Worker. No sensitive data stored in browser.</span>
-                    </div>
-                </div>
-                <div id="manualAuthSection" class="hidden">
-                    <div class="tooltip">
-                        <button id="authenticateManual" class="button">Authenticate Direct (Manual)</button>
-                        <span class="tooltiptext">Direct authentication with Raindrop.io. Requires Client ID and Secret to be entered above.</span>
-                    </div>
+                <div class="tooltip">
+                    <button id="authenticateManaged" class="button">Authenticate with Raindrop</button>
+                    <span class="tooltiptext">Secure authentication through Cloudflare Worker. No sensitive data stored in browser.</span>
                 </div>
                 <button id="testConnection" class="button secondary">Test Connection</button>
                 <button id="logout" class="button danger hidden">Logout</button>
             </div>
-            <div id="userInfo" class="sync-info hidden"></div>
+
+            <div id="manualAuthSection" class="hidden" style="margin-top: 12px;">
+                <div style="display: flex; gap: 8px; align-items: center;">
+                    <div class="tooltip">
+                        <button id="authenticateManual" class="button secondary">Manual Authentication</button>
+                        <span class="tooltiptext">Direct authentication with Raindrop.io. Requires Client ID and Secret to be entered above.</span>
+                    </div>
+                    <span class="help-text">Use if Cloudflare authentication fails</span>
+                </div>
+            </div>
+            <!-- Manual Configuration Section -->
+            <div style="margin-top: 16px; padding: 12px; border: 1px solid #e6e9ef; border-radius: 6px; background: #fafbfc;">
+                <div style="display: flex; align-items: center; justify-content: space-between;">
+                    <div>
+                        <h3 style="margin: 0 0 4px 0; font-size: 14px;">Manual Configuration</h3>
+                        <span class="help-text" style="margin: 0;">For advanced users or direct authentication setup</span>
+                    </div>
+                    <button id="toggleManualConfig" type="button" style="background: none; border: 1px solid #007cba; color: #007cba; padding: 6px 12px; border-radius: 4px; font-size: 12px; cursor: pointer;">
+                        Show
+                    </button>
+                </div>
+            </div>
+
+            <div id="manualConfigSection" class="hidden" style="border: 1px solid #e8f0f8; background: #f9fbff; border-radius: 8px; padding: 16px; margin-top: 12px;">
+                <div class="form-group">
+                    <label for="clientId">Client ID</label>
+                    <div class="input-row">
+                        <input type="password" id="clientId" placeholder="Enter your Raindrop Client ID">
+                        <button id="toggleClientId" type="button" class="toggle-eye" aria-label="Show/Hide">Show</button>
+                    </div>
+                    <div class="help-text">Stored locally via Chrome storage. Hidden by default for privacy.</div>
+                </div>
+
+                <div class="form-group">
+                    <label for="clientSecret">Client Secret</label>
+                    <div class="input-row">
+                        <input type="password" id="clientSecret" placeholder="Enter your Raindrop Client Secret">
+                        <button id="toggleClientSecret" type="button" class="toggle-eye" aria-label="Show/Hide">Show</button>
+                    </div>
+                    <div class="help-text">Do not share your client secret.</div>
+                </div>
+
+                <div class="form-group">
+                    <label for="redirectUri">Redirect URI</label>
+                    <div class="input-row">
+                        <input type="url" id="redirectUri" class="pre-filled" placeholder="Extension identity redirect (auto)">
+                        <button id="redirectReset" type="button" class="toggle-eye" aria-label="Reset to default">Reset</button>
+                    </div>
+                    <div class="help-text">Default is the extension identity URL (auto). You can override this for beta testing; ensure it matches what you registered in Raindrop.</div>
+                    <div id="redirectHint" class="help-text" style="margin-top:6px;"></div>
+                </div>
+                <div style="margin-top: 16px;">
+                    <button id="saveConfig" class="button">Save Configuration</button>
+                </div>
+            </div>
 
             <div class="section" style="margin-top:16px;">
                 <h3>Debug</h3>
@@ -938,38 +974,37 @@
         </div>
 
         <div class="section tab-panel" id="tab-support" data-tab="support">
-            <h2>Guide & Help</h2>
-            <p class="support-text">Quick how-to and where to get help or share feedback.</p>
+            <h2>Support</h2>
+            <p class="support-text">Quick setup guide and support resources.</p>
 
-            <div class="sections-grid">
-                <div class="section">
-                    <h3>1) Connect Raindrop.io</h3>
-                    <p>Open the Raindrop section and enter your Client ID/Secret, then Authenticate. Use Test Connection to verify.</p>
-                </div>
-                <div class="section">
-                    <h3>2) Choose Sync Mode</h3>
-                    <p>Pick the reconciliation level (e.g., Additions only or Mirror) and set the sync interval and rate limit for safety.</p>
-                </div>
-                <div class="section">
-                    <h3>3) Collections & Target</h3>
-                    <p>Select which collections to import, and where in the browser bookmarks they should appear.</p>
-                </div>
-                <div class="section">
-                    <h3>Good To Know</h3>
-                    <ul>
-                        <li>Manual “Sync Now” runs immediately.</li>
-                        <li>Disable sync before clearing all bookmarks to avoid auto-restore.</li>
-                        <li>Export a JSON backup for safety before big changes.</li>
-                    </ul>
-                </div>
-            </div>
+            <h3>Quick Setup</h3>
+            <ol style="margin: 16px 0; padding-left: 20px;">
+                <li><strong>Connect Raindrop.io:</strong> Enter your credentials and authenticate</li>
+                <li><strong>Choose Sync Mode:</strong> Pick reconciliation level and set sync interval</li>
+                <li><strong>Select Collections:</strong> Choose which collections to sync and target folder</li>
+            </ol>
+
+            <h3>Tips</h3>
+            <ul style="margin: 16px 0; padding-left: 20px;">
+                <li>Use "Test Connection" to verify authentication</li>
+                <li>Export JSON backup before making big changes</li>
+                <li>Disable sync before clearing all bookmarks</li>
+            </ul>
 
             <div class="support-section">
-                <h3>Get Help</h3>
+                <h3>Need Help?</h3>
                 <div class="support-buttons">
                     <a id="supportPanelSite" class="header-link" href="#" target="_blank" rel="noopener noreferrer">
                         <span>🏠</span>
                         <span>Visit Website</span>
+                    </a>
+                    <a class="header-link" href="https://github.com/daiquiri-98/open-bookmark-sync" target="_blank" rel="noopener noreferrer">
+                        <span>🔗</span>
+                        <span>GitHub Repository</span>
+                    </a>
+                    <a class="header-link" href="https://github.com/daiquiri-98/open-bookmark-sync/blob/main/PRIVACY.md" target="_blank" rel="noopener noreferrer">
+                        <span>🔒</span>
+                        <span>Privacy Policy</span>
                     </a>
                     <a href="mailto:dagkan@daiquiri.dev?subject=Raindrop%20Browser%20Sync%20-%20Issue%20Report&body=Hi%2C%0A%0AI%20found%20an%20issue%20with%20the%20Raindrop%20Browser%20Sync%20extension%3A%0A%0A%5BPlease%20describe%20the%20issue%20here%5D%0A%0AThanks%21" class="header-link">
                         <span>📧</span>
@@ -983,41 +1018,23 @@
             <h2>Roadmap</h2>
             <p class="help-text">Planned improvements focusing on safety, clarity, and scalability.</p>
 
-            <div class="sections-grid">
-                <div class="section">
-                    <h3>Safer Sync</h3>
-                    <ul>
-                        <li>Dry‑Run / Preview before applying changes</li>
-                        <li>“No‑Delete” Safe Mode (Mirror without deletions)</li>
-                        <li>Automatic snapshot + Undo last sync</li>
-                    </ul>
-                </div>
-                <div class="section">
-                    <h3>Per‑Collection Controls</h3>
-                    <ul>
-                        <li>Enable/disable per collection</li>
-                        <li>Collection → target folder mapping</li>
-                        <li>Include/exclude by tag or domain</li>
-                    </ul>
-                </div>
-                <div class="section">
-                    <h3>Scheduling & Resilience</h3>
-                    <ul>
-                        <li>Quiet hours and conditional pauses</li>
-                        <li>Next sync ETA + quick retry</li>
-                    </ul>
-                </div>
-                <div class="section">
-                    <h3>Cloud Backends</h3>
-                    <ul>
-                        <li>Amazon S3, Cloudflare R2</li>
-                        <li>Google Drive, OneDrive, Dropbox</li>
-                    </ul>
-                </div>
-            </div>
+            <h3>Upcoming Features</h3>
+            <ul style="margin: 16px 0; padding-left: 20px; line-height: 1.6;">
+                <li><strong>Safer Sync:</strong> Dry-run preview, no-delete safe mode, automatic snapshots</li>
+                <li><strong>Per-Collection Controls:</strong> Enable/disable collections, custom folder mapping</li>
+                <li><strong>Smart Scheduling:</strong> Quiet hours, next sync ETA, quick retry</li>
+                <li><strong>Cloud Backends:</strong> S3, Google Drive, OneDrive, Dropbox support</li>
+                <li><strong>Enhanced Filtering:</strong> Include/exclude by tag or domain</li>
+            </ul>
 
             <div class="support-section">
-                <a class="header-link" href="#" id="openRoadmapRepo" target="_blank" rel="noopener noreferrer">📄 View full ROADMAP.md</a>
+                <div style="display: flex; gap: 12px; flex-wrap: wrap;">
+                    <a class="header-link" href="https://github.com/daiquiri-98/open-bookmark-sync" target="_blank" rel="noopener noreferrer">
+                        <span>🔗</span>
+                        <span>GitHub Repository</span>
+                    </a>
+                    <a class="header-link" href="#" id="openRoadmapRepo" target="_blank" rel="noopener noreferrer">📄 View full ROADMAP.md</a>
+                </div>
             </div>
         </div>
 

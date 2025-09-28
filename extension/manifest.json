@@ -33,5 +33,8 @@
     "16": "icon16.png",
     "64": "icon64.png",
     "128": "icon128.png"
-  }
+  },
+
+  "homepage_url": "https://github.com/daiquiri-98/open-bookmark-sync",
+  "privacy_policy": "https://github.com/daiquiri-98/open-bookmark-sync/blob/main/PRIVACY.md"
 }

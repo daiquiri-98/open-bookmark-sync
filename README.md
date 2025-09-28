@@ -2,7 +2,7 @@
 
 Synchronize your Raindrop.io collections with the browser Bookmarks Bar. Supports one‑way import, two‑way additions‑only, or full mirror, with sorting, rate‑limit safety and a compact toolbar popup.
 
-Support: https://buymeacoffee.com/daiquiri
+**Links**: [Privacy Policy](PRIVACY.md) | [Support](https://buymeacoffee.com/daiquiri) | [Issues](https://github.com/daiquiri-98/open-bookmark-sync/issues)
 
 ## Overview
 
@@ -48,5 +48,27 @@ Troubleshooting
 
 Development
 - Key files: `manifest.json`, `background.js`, `oauth.js`, `options.html/js`, `popup.html/js`
+
+## Privacy & Compliance
+
+This extension is designed with privacy-first principles:
+
+- **No data collection**: Zero telemetry, analytics, or user tracking
+- **Local-only storage**: All data stored securely in Chrome's local storage
+- **Minimal permissions**: Only requests necessary permissions for functionality
+- **Transparent**: Open source with comprehensive privacy policy
+- **Chrome Web Store compliant**: Meets all CWS developer program policies
+
+See [PRIVACY.md](PRIVACY.md) for the complete privacy policy.
+
+## Chrome Web Store Submission
+
+For Chrome Web Store compliance:
+- ✅ Privacy policy: [PRIVACY.md](PRIVACY.md)
+- ✅ Manifest V3 compliance
+- ✅ Minimal permission usage
+- ✅ No data collection/telemetry
+- ✅ Clear privacy disclosures
+- ✅ GitHub homepage and support links
 
 License: MIT
