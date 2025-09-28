@@ -1,4 +1,6 @@
 // Test Cloudflare Worker locally
+// IMPORTANT: Replace the placeholder credentials below with your actual Raindrop.io API credentials
+// Do NOT commit real credentials to Git! Use environment variables in production.
 const express = require('express');
 const crypto = require('crypto');
 const fetch = require('node-fetch');
@@ -6,10 +8,10 @@ const fetch = require('node-fetch');
 const app = express();
 app.use(express.json());
 
-// Environment variables from your credentials
-const RAINDROP_CLIENT_ID = '68d7deb75430135b7fc617bc';
-const RAINDROP_CLIENT_SECRET = '67dbd5d5-1f4d-477a-8d19-9fa8c8f3d98c';
-const SESSION_SECRET = 'test-session-secret-1234567890abcdef'; // Test session secret
+// Environment variables - Replace with your actual credentials
+const RAINDROP_CLIENT_ID = 'your_raindrop_client_id_here';
+const RAINDROP_CLIENT_SECRET = 'your_raindrop_client_secret_here';
+const SESSION_SECRET = 'your_session_secret_here'; // Generate a random 32+ character string
 
 // In-memory session store (for testing)
 const sessions = new Map();

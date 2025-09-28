@@ -15,7 +15,21 @@ Thumbs.db
 # Node
 node_modules/
 
-# Secrets
+# Secrets & Credentials
 session-secret.md
+.env*
+*.key
+*.pem
+credentials.json
+config/secrets.js
+*secret*
+*credentials*
 
 # (intentionally left minimal; no project docs ignored)
+
+# Local references
+oauth guide/
+auth guide/
+DEVELOPERS_GUIDE.md
+DEVELOPERS_LOG.md
+wordpress/bricks-product-page.html

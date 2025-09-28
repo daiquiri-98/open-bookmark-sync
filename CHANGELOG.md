@@ -1,5 +1,38 @@
 # Changelog
 
+## 1.1.0 - 2025-09-28
+
+### Chrome Web Store Compliance
+- **Privacy Policy**: Added comprehensive PRIVACY.md file
+- **Manifest Updates**: Added privacy_policy and homepage_url fields
+- **Privacy Links**: Added Privacy Policy links to extension UI
+- **Documentation**: Enhanced README with compliance information
+- **Zero Telemetry**: Reinforced no-data-collection policy
+
+### UI/UX Improvements
+- **Managed OAuth**: Removed "Cloudflare" from title, moved worker status next to URL label
+- **Authentication Status**: Unified user info with connection status on single line
+- **Manual Configuration**: Redesigned as integrated card with Show/Hide toggle
+- **Visual Separation**: Added subtle styling to manual config when expanded
+- **Privacy Notice**: Moved to top with closeable design (× button)
+- **Layout Optimization**: Improved section ordering and reduced visual clutter
+- **Help Menu**: Renamed "Get Help" to "Support", simplified content structure
+- **GitHub Links**: Added repository links to Support and Roadmap sections
+
+### Technical Enhancements
+- **OAuth URL Documentation**: Clear explanation that "not found" is normal behavior
+- **Save Config Button**: Moved to manual section, hidden when not needed
+- **Automatic Worker Health**: Background checking without manual intervention
+- **Code Cleanup**: Removed redundant spacing and streamlined layout
+
+### Turkish Summary (TR)
+- **Chrome Web Store Uyumluluğu**: Kapsamlı privacy policy ve compliance
+- **Arayüz İyileştirmeleri**: Birleşik auth durumu, yeniden tasarlanmış manuel yapılandırma
+- **Görsel Düzenlemeler**: Daha temiz layout, gizlenebilir privacy bildirimi
+- **GitHub Entegrasyonu**: Destek bölümlerine repository linkleri eklendi
+
+---
+
 ## 0.4.0 - 2025-09-27
 - New sidebar layout (default): header and sidebar fixed; content scrolls smoothly
 - Navigation restructure: Raindrop category (Connection + Raindrop Sync), Maintenance (Import/Export + Danger Zone), Resources (Guide & Help, Buy Me a Coffee)
