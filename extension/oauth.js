@@ -89,15 +89,26 @@ class RaindropOAuth {
     const startUrl = new URL(baseUrl.replace(/\/$/, '') + '/auth/start');
     startUrl.searchParams.set('ext_redirect', redirectUri);
 
+    console.log('Managed OAuth: Starting auth with URL:', startUrl.toString());
+    console.log('Managed OAuth: Extension redirect URI:', redirectUri);
+
     const redirectUrl = await chrome.identity.launchWebAuthFlow({
       url: startUrl.toString(),
       interactive: true
     });
 
     // Expect session_code on the redirect back to the extension
+    console.log('Managed OAuth: Redirect URL received:', redirectUrl);
     const urlParams = new URL(redirectUrl);
     const sessionCode = urlParams.searchParams.get('session_code');
     const error = urlParams.searchParams.get('error');
+
+    console.log('Managed OAuth: Parsed URL params:', {
+      sessionCode,
+      error,
+      allParams: Array.from(urlParams.searchParams.entries())
+    });
+
     if (error) throw new Error(`OAuth error: ${error}`);
     if (!sessionCode) throw new Error('No session code received');
 
@@ -105,12 +116,45 @@ class RaindropOAuth {
     const fetchUrl = new URL(baseUrl.replace(/\/$/, '') + '/auth/fetch');
     fetchUrl.searchParams.set('session_code', sessionCode);
     const res = await fetch(fetchUrl.toString(), { method: 'GET' });
-    if (!res.ok) throw new Error(`Failed to fetch tokens: ${res.status}`);
-    const tokenData = await res.json();
+    if (!res.ok) {
+      const errorText = await res.text();
+      console.error('Managed OAuth: /auth/fetch failed:', res.status, errorText);
+      throw new Error(`Failed to fetch tokens: ${res.status} - ${errorText}`);
+    }
+
+    const responseText = await res.text();
+    console.log('Managed OAuth: /auth/fetch raw response:', responseText);
+
+    let tokenData;
+    try {
+      tokenData = JSON.parse(responseText);
+    } catch (e) {
+      console.error('Managed OAuth: Invalid JSON response:', responseText);
+      throw new Error(`Worker returned invalid JSON: ${responseText.substring(0, 100)}${responseText.length > 100 ? '...' : ''}`);
+    }
+
+    console.log('Managed OAuth: /auth/fetch parsed response:', tokenData);
 
     if (!tokenData || !tokenData.access_token) {
       console.error('Managed OAuth: /auth/fetch returned unexpected payload:', tokenData);
-      throw new Error('Worker returned no access token');
+
+      // Check for different possible response formats
+      if (tokenData && tokenData.error) {
+        throw new Error(`Worker error: ${tokenData.error}${tokenData.error_description ? ` - ${tokenData.error_description}` : ''}`);
+      }
+
+      // Check if it's nested in a different property
+      if (tokenData && tokenData.result && tokenData.result.access_token) {
+        tokenData.access_token = tokenData.result.access_token;
+        tokenData.refresh_token = tokenData.result.refresh_token;
+        tokenData.expires_in = tokenData.result.expires_in;
+      } else if (tokenData && tokenData.data && tokenData.data.access_token) {
+        tokenData.access_token = tokenData.data.access_token;
+        tokenData.refresh_token = tokenData.data.refresh_token;
+        tokenData.expires_in = tokenData.data.expires_in;
+      } else {
+        throw new Error(`Worker returned invalid response format. Expected access_token, got: ${JSON.stringify(Object.keys(tokenData || {}))}`);
+      }
     }
 
     try {

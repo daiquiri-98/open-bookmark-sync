@@ -781,20 +781,22 @@
                     <div id="authProgressFill" class="progress-bar-fill"></div>
                 </div>
             </div>
-            <div id="managedAuthSection" class="hidden">
-                <div class="tooltip">
-                    <button id="authenticateManaged" class="button">Authenticate via Cloudflare (Managed)</button>
-                    <span class="tooltiptext">Secure authentication through your Cloudflare Worker. No sensitive data stored in browser.</span>
+            <div style="display: flex; gap: 8px; flex-wrap: wrap; align-items: center;">
+                <div id="managedAuthSection" class="hidden">
+                    <div class="tooltip">
+                        <button id="authenticateManaged" class="button">Authenticate via Cloudflare (Managed)</button>
+                        <span class="tooltiptext">Secure authentication through your Cloudflare Worker. No sensitive data stored in browser.</span>
+                    </div>
                 </div>
-            </div>
-            <div id="manualAuthSection" class="hidden">
-                <div class="tooltip">
-                    <button id="authenticateManual" class="button">Authenticate Direct (Manual)</button>
-                    <span class="tooltiptext">Direct authentication with Raindrop.io. Requires Client ID and Secret to be entered above.</span>
+                <div id="manualAuthSection" class="hidden">
+                    <div class="tooltip">
+                        <button id="authenticateManual" class="button">Authenticate Direct (Manual)</button>
+                        <span class="tooltiptext">Direct authentication with Raindrop.io. Requires Client ID and Secret to be entered above.</span>
+                    </div>
                 </div>
+                <button id="testConnection" class="button secondary">Test Connection</button>
+                <button id="logout" class="button danger hidden">Logout</button>
             </div>
-            <button id="testConnection" class="button secondary">Test Connection</button>
-            <button id="logout" class="button danger hidden">Logout</button>
             <div id="userInfo" class="sync-info hidden"></div>
 
             <div class="section" style="margin-top:16px;">

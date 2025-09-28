@@ -3,6 +3,8 @@
 class OptionsManager {
   constructor() {
     this.oauth = new RaindropOAuth();
+    this.messageQueue = [];
+    this.currentMessageTimeout = null;
     this.initializeElements();
     this.bindEvents();
     this.loadSettings();
@@ -179,8 +181,15 @@ class OptionsManager {
       const json = await res.json().catch(() => ({}));
       if (!res.ok) throw new Error('HTTP ' + res.status);
 
+      console.log('Worker /env-ok response:', json);
+
       healthCheck.envCheck = !!(json.hasClientId && json.hasClientSecret && json.hasSessionSecret);
       healthCheck.version = json.version || 'unknown';
+
+      // Additional checks for response format
+      if (json.responseFormat) {
+        healthCheck.responseFormat = json.responseFormat;
+      }
 
       const isHealthy = healthCheck.envCheck && healthCheck.responseTime < 5000;
 
@@ -545,7 +554,10 @@ class OptionsManager {
         const line = raw.split(/\r?\n/).map(s => s.trim()).find(s => s && !s.startsWith('#'));
         if (!line) continue;
         return this.normalizeUrl(line);
-      } catch (_) {}
+      } catch (e) {
+        // Silently continue if file doesn't exist
+        console.debug(`Optional file ${name} not found, using fallback`);
+      }
     }
     return '';
   }
@@ -1359,12 +1371,16 @@ class OptionsManager {
       }
 
       await chrome.storage.sync.set({ clientId, clientSecret, managedOAuth, managedOAuthBaseUrl, redirectUri });
-      this.showMessage('Configuration saved successfully', 'success');
+      // Only show save message if not in the middle of authentication
+      if (!this.elements.authenticateManaged?.disabled && !this.elements.authenticateManual?.disabled) {
+        this.showMessage('Configuration saved successfully', 'success');
+      }
     } catch (_) { this.showMessage('Failed to save configuration', 'error'); }
   }
 
   async authenticateManaged() {
     try {
+      this.clearMessages(); // Clear any previous messages
       this.setButtonLoading(this.elements.authenticateManaged, true);
       this.setAuthStatus('Connecting...', 'Initializing Cloudflare authentication', true);
       this.showProgress(true, 10, 'Starting authentication flow...');
@@ -1404,6 +1420,7 @@ class OptionsManager {
 
   async authenticateManual() {
     try {
+      this.clearMessages(); // Clear any previous messages
       this.setButtonLoading(this.elements.authenticateManual, true);
       this.setAuthStatus('Validating...', 'Checking credentials', true);
       this.showProgress(true, 10, 'Validating configuration...');
@@ -1530,13 +1547,79 @@ class OptionsManager {
 
   clearUserInfo() { if (this.elements.userInfo) { this.elements.userInfo.classList.add('hidden'); this.elements.userInfo.innerHTML = ''; } }
 
-  showMessage(message, type = 'info') {
+  showMessage(message, type = 'info', priority = 'normal') {
+    const messageObj = { message, type, priority, id: Date.now() };
+
+    // Clear existing timeout for auto-hide messages
+    if (this.currentMessageTimeout) {
+      clearTimeout(this.currentMessageTimeout);
+      this.currentMessageTimeout = null;
+    }
+
+    // High priority messages (errors) clear the queue and show immediately
+    if (priority === 'high' || type === 'error') {
+      this.messageQueue = [];
+      this.displayMessage(messageObj);
+      return;
+    }
+
+    // Add to queue and process
+    this.messageQueue.push(messageObj);
+    this.processMessageQueue();
+  }
+
+  processMessageQueue() {
+    if (this.messageQueue.length === 0) return;
+
+    // If no message is currently showing, show the next one
+    if (!this.elements.statusMessage || this.elements.statusMessage.classList.contains('hidden')) {
+      const nextMessage = this.messageQueue.shift();
+      this.displayMessage(nextMessage);
+    }
+  }
+
+  displayMessage(messageObj) {
     if (!this.elements.statusMessage) return;
-    this.elements.statusMessage.textContent = message;
-    this.elements.statusMessage.className = `status ${type}`;
+
+    this.elements.statusMessage.textContent = messageObj.message;
+    this.elements.statusMessage.className = `status ${messageObj.type}`;
     this.elements.statusMessage.classList.remove('hidden');
-    try { this.elements.statusMessage.scrollIntoView({ behavior: 'smooth', block: 'nearest' }); } catch (_) {}
-    if (type === 'success') setTimeout(() => { this.elements.statusMessage.classList.add('hidden'); }, 3000);
+
+    try {
+      this.elements.statusMessage.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+    } catch (_) {}
+
+    // Auto-hide success messages and process next in queue
+    if (messageObj.type === 'success' || messageObj.type === 'info') {
+      this.currentMessageTimeout = setTimeout(() => {
+        if (this.elements.statusMessage) {
+          this.elements.statusMessage.classList.add('hidden');
+        }
+        this.currentMessageTimeout = null;
+        // Process next message in queue after hiding current one
+        setTimeout(() => this.processMessageQueue(), 100);
+      }, messageObj.type === 'success' ? 2000 : 3000);
+    } else if (messageObj.type === 'error') {
+      // Error messages auto-hide after 8 seconds but user can click to dismiss
+      this.currentMessageTimeout = setTimeout(() => {
+        if (this.elements.statusMessage) {
+          this.elements.statusMessage.classList.add('hidden');
+        }
+        this.currentMessageTimeout = null;
+        setTimeout(() => this.processMessageQueue(), 100);
+      }, 8000);
+    }
+  }
+
+  clearMessages() {
+    this.messageQueue = [];
+    if (this.currentMessageTimeout) {
+      clearTimeout(this.currentMessageTimeout);
+      this.currentMessageTimeout = null;
+    }
+    if (this.elements.statusMessage) {
+      this.elements.statusMessage.classList.add('hidden');
+    }
   }
 
   setButtonLoading(button, loading, originalText = null) {
@@ -1602,6 +1685,25 @@ class OptionsManager {
 
   getErrorSuggestions(error) {
     const errorMsg = error.toLowerCase();
+
+    if (errorMsg.includes('worker returned no access token') || errorMsg.includes('invalid response format')) {
+      return [
+        'Check if your Cloudflare Worker is properly deployed',
+        'Verify RAINDROP_CLIENT_ID and RAINDROP_CLIENT_SECRET are set in Worker environment',
+        'Check SESSION_SECRET is configured in Worker',
+        'Try using Manual authentication instead',
+        'Contact your Worker administrator'
+      ];
+    }
+
+    if (errorMsg.includes('worker error')) {
+      return [
+        'Check Worker logs in Cloudflare dashboard',
+        'Verify Worker environment variables are correct',
+        'Ensure Worker script is deployed and active',
+        'Try Manual authentication as fallback'
+      ];
+    }
 
     if (errorMsg.includes('network') || errorMsg.includes('fetch')) {
       return [
@@ -1925,7 +2027,8 @@ class OptionsManager {
 
     switch (fallbackType) {
       case 'managed-to-manual':
-        if (errorMsg.includes('network') || errorMsg.includes('worker') || errorMsg.includes('cloudflare')) {
+        if (errorMsg.includes('network') || errorMsg.includes('worker') || errorMsg.includes('cloudflare') ||
+            errorMsg.includes('no access token') || errorMsg.includes('invalid response format')) {
           return [
             {
               title: 'Try Manual Authentication',
