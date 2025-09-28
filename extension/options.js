@@ -19,6 +19,8 @@ class OptionsManager {
       managedOAuth: document.getElementById('managedOAuth'),
       managedOAuthBaseUrl: document.getElementById('managedOAuthBaseUrl'),
       managedBaseEdit: document.getElementById('managedBaseEdit'),
+      checkWorker: document.getElementById('checkWorker'),
+      workerStatus: document.getElementById('workerStatus'),
       toggleClientId: document.getElementById('toggleClientId'),
       toggleClientSecret: document.getElementById('toggleClientSecret'),
       redirectUri: document.getElementById('redirectUri'),
@@ -64,6 +66,7 @@ class OptionsManager {
     // Managed OAuth is disabled in UI; keep handler but will be no-op
     E.managedOAuth && E.managedOAuth.addEventListener('change', () => this.onManagedToggle());
     E.managedBaseEdit && E.managedBaseEdit.addEventListener('click', () => this.toggleManagedBaseEdit());
+    E.checkWorker && E.checkWorker.addEventListener('click', () => this.checkWorker());
 
     E.toggleClientId && E.toggleClientId.addEventListener('click', () => this.toggleSecret(E.clientId, E.toggleClientId));
     E.toggleClientSecret && E.toggleClientSecret.addEventListener('click', () => this.toggleSecret(E.clientSecret, E.toggleClientSecret));
@@ -126,6 +129,24 @@ class OptionsManager {
     document.querySelectorAll('.side-link').forEach(btn => {
       btn.addEventListener('click', () => this.showTab(btn.dataset.tab));
     });
+  }
+
+  async checkWorker() {
+    const base = (this.elements.managedOAuthBaseUrl?.value || '').replace(/\/$/, '');
+    const status = this.elements.workerStatus;
+    if (!base) { if (status) status.textContent = 'Enter base URL first.'; return; }
+    try {
+      if (status) status.textContent = 'Checking…';
+      const res = await fetch(base + '/env-ok', { method: 'GET' });
+      const json = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error('HTTP ' + res.status);
+      const ok = !!(json.hasClientId && json.hasClientSecret && json.hasSessionSecret);
+      if (status) status.textContent = ok ? 'Worker OK (env present)' : 'Worker missing env vars';
+      if (!ok) this.showMessage('Worker is missing variables. Check RAINDROP_CLIENT_ID/SECRET and SESSION_SECRET.', 'error');
+    } catch (e) {
+      if (status) status.textContent = 'Worker check failed';
+      this.showMessage('Failed to reach Worker: ' + (e?.message || e), 'error');
+    }
   }
 
   toggleSecret(inputEl, btnEl) {
