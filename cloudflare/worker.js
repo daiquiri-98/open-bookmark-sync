@@ -1,5 +1,7 @@
 export default {
   async fetch(request, env, ctx) {
+    // Support both Module Worker (env param) and Service Worker (globals) deployments
+    env = this._coerceEnv(env);
     const url = new URL(request.url);
     try {
       // Basic CORS for extension fetches
@@ -45,6 +47,7 @@ export default {
   },
 
   async _authStart(url, env) {
+    env = this._coerceEnv(env);
     const extRedirect = url.searchParams.get('ext_redirect');
     if (!extRedirect) {
       return this._cors(new Response(JSON.stringify({ error: 'missing_param', param: 'ext_redirect' }), { status: 400, headers: { 'Content-Type': 'application/json' } }));
@@ -76,6 +79,7 @@ export default {
   },
 
   async _authCallback(url, env) {
+    env = this._coerceEnv(env);
     const code = url.searchParams.get('code');
     const state = url.searchParams.get('state');
     if (!code || !state) {
@@ -140,6 +144,7 @@ export default {
   },
 
   async _tokenRefresh(request, env) {
+    env = this._coerceEnv(env);
     let body;
     try {
       body = await request.json();
@@ -174,6 +179,16 @@ export default {
     headers.set('Access-Control-Allow-Methods', 'GET,POST,OPTIONS');
     headers.set('Access-Control-Allow-Headers', 'Content-Type,Authorization');
     return new Response(res.body, { status: res.status, headers });
+  },
+
+  _coerceEnv(env) {
+    try {
+      // In Service Worker format, bindings are exposed as globals
+      if (typeof RAINDROP_CLIENT_ID !== 'undefined' && !env.RAINDROP_CLIENT_ID) env.RAINDROP_CLIENT_ID = RAINDROP_CLIENT_ID;
+      if (typeof RAINDROP_CLIENT_SECRET !== 'undefined' && !env.RAINDROP_CLIENT_SECRET) env.RAINDROP_CLIENT_SECRET = RAINDROP_CLIENT_SECRET;
+      if (typeof SESSION_SECRET !== 'undefined' && !env.SESSION_SECRET) env.SESSION_SECRET = SESSION_SECRET;
+    } catch (_) {}
+    return env || {};
   },
 
   _baseUrl(url) {
