@@ -1,35 +1,74 @@
-# Open Bookmark Sync (Chrome/Brave, MV3)
+# Open Bookmark Sync
 
-Synchronize your Raindrop.io collections with the browser Bookmarks Bar. Supports one‑way import, two‑way additions‑only, or full mirror, with sorting, rate‑limit safety and a compact toolbar popup.
+![Version](https://img.shields.io/badge/version-1.3.0-blue.svg)
+![License](https://img.shields.io/badge/license-MIT-green.svg)
+![Chrome Web Store](https://img.shields.io/badge/Chrome%20Web%20Store-Compliant-brightgreen.svg)
 
-**Links**: [Privacy Policy](PRIVACY.md) | [Support](https://buymeacoffee.com/daiquiri) | [Issues](https://github.com/daiquiri-98/open-bookmark-sync/issues)
+> Synchronize your Raindrop.io collections with Chrome/Brave bookmarks. Features one‑way import, two‑way sync, automatic backups, and smart cleanup tools.
+
+**Links**: [Privacy Policy](PRIVACY.md) | [Roadmap](ROADMAP.md) | [Changelog](CHANGELOG.md) | [Support](https://buymeacoffee.com/daiquiri) | [Issues](https://github.com/daiquiri-98/open-bookmark-sync/issues)
+
+## ✨ What's New in v1.3.0
+
+- **🎯 Chrome Web Store Compliant**: Removed all remote code dependencies
+- **💾 HTML Backup Export**: Automatic JSON + HTML backup downloads (Netscape format)
+- **🔧 Bug Fixes**: Fixed emergency restore, empty bookmark titles preservation
+- **🎨 UI Improvements**: Reorganized sidebar with "Raindrop.io Sync" category
+- **🛠 Tools Enhancement**: New Danger Zone section for advanced operations
+- **📉 Streamlined**: Reduced from 6 to 5 tabs, cleaner navigation
+
+[View full changelog →](CHANGELOG.md)
 
 ## Overview
 
-Features
-- Direct to Bookmarks Bar: Creates collection‑named folders at the root of the bar
-- Two‑way modes: additions_only (default), mirror (add/update/delete), off (one‑way → browser)
-- Sorting: per‑folder bookmark order and collection folder order
-- Manual + scheduled sync: interval configurable (1–60+ min)
-- OAuth2 via chrome.identity with token refresh
-- Rate‑limit aware: paced requests + Retry‑After/exponential backoff
-- Toolbar popup: quick sync, auth/logout, interval and mode selectors
-- Options page: full settings with responsive 2‑column layout
+### Core Features
+- **🔄 Flexible Sync Modes**: One-way, two-way additions-only, or full mirror sync
+- **📁 Smart Organization**: Creates collection-named folders in your bookmarks bar
+- **⏰ Automatic Scheduling**: Configurable sync intervals (1-60+ minutes)
+- **🔐 Secure OAuth2**: Chrome identity API with automatic token refresh
+- **💾 Backup & Restore**: Automatic backups with JSON + HTML export
+- **🧹 Cleanup Tools**: URL parameter cleaning, duplicate detection, empty folder removal
+- **🎨 Modern UI**: Clean, responsive interface with 5 organized tabs
+- **⚡ Performance**: Rate-limit aware with exponential backoff
 
-Install (unpacked)
-1) Clone or download this repository
-2) Open `chrome://extensions` (or Brave equivalent) and enable Developer mode
-3) Click “Load unpacked” and select the `extension/` folder
-4) Pin the extension to access the popup easily
+## 🚀 Installation
 
-OAuth Setup (Raindrop.io)
-- Create an app at https://raindrop.io/developer
-- Redirect URI: `https://<EXTENSION_ID>.chromiumapp.org/`
-- Enter Client ID/Secret in Options and authenticate
+### From Source (Development)
+1. Clone or download this repository
+2. Open `chrome://extensions` (or Brave equivalent) and enable **Developer mode**
+3. Click **"Load unpacked"** and select the `extension/` folder
+4. Pin the extension to your toolbar for quick access
 
-Usage
-- Popup: Sync Now, Authenticate/Logout, set Interval, choose Two‑way Mode
-- Options: choose target folder, interval, sorting, max requests/min
+### Chrome Web Store (Coming Soon)
+The extension is currently under review for the Chrome Web Store.
+
+## ⚙️ Setup
+
+### 1. OAuth Setup (Raindrop.io)
+1. Create an app at [Raindrop.io Developer Portal](https://raindrop.io/developer)
+2. Set Redirect URI: `https://<EXTENSION_ID>.chromiumapp.org/`
+3. Copy your Client ID and Client Secret
+4. Open extension **Options** → **Connect** tab
+5. Enter credentials and click **Authenticate**
+
+### 2. Configure Sync
+1. Go to **Sync Settings** tab
+2. Select target bookmark folder
+3. Choose collections to sync
+4. Set sync mode (additions_only recommended for safety)
+5. Enable automatic sync
+
+## 📖 Usage
+
+### Quick Actions
+- **Popup**: One-click sync, view status, quick settings
+- **Options**: Full configuration, backup management, cleanup tools
+
+### Sync Modes
+- **One-way (Raindrop → Browser)**: Import only, no changes to Raindrop
+- **Additions Only**: Two-way sync, only adds new items (safest)
+- **Mirror**: Full two-way sync with deletions (use with caution)
+- **Upload Only**: Browser → Raindrop only
 
 How It Works
 - Collections → folders; Raindrops → bookmarks
