@@ -1,0 +1,92 @@
+Chrome Web Store Compliant Release
+
+This release resolves all Chrome Web Store policy violations and significantly improves the extension's functionality and user experience.
+
+HIGHLIGHTS
+
+- Chrome Web Store Compliant - Removed all remote code dependencies
+- Dual Backup Format - Automatic JSON + HTML backup exports
+- Critical Bug Fixes - Emergency restore, empty titles, backup downloads
+- UI Reorganization - New "Raindrop.io Sync" category, 5 streamlined tabs
+- Enhanced Tools - New Danger Zone section with better organization
+
+KEY FEATURES
+
+Chrome Web Store Compliance
+- Removed CDN dependencies (Buy Me a Coffee script)
+- All code now bundled within extension
+- Fully compliant with Chrome Web Store policies
+
+HTML + JSON Backups
+- Both formats download automatically
+- JSON for extension restoration
+- HTML (Netscape format) for browser imports
+- Single-click backup with progress feedback
+
+Critical Fixes
+- Emergency restore now correctly loads bookmarks from JSON
+- Empty bookmark titles (favicon-only) properly preserved
+- Backup Now button downloads files correctly
+- Fixed duplicate HTML IDs causing functionality issues
+
+UI Improvements
+- Sidebar: "Raindrop.io Sync" main category (Connect + Sync Settings)
+- Navigation: Reduced from 6 to 5 tabs
+- Support Resources: Redesigned with 2-column grid layout
+- Notification Bar: Reduced height for more screen space
+- Tools: New Danger Zone section with red warning styling
+
+INSTALLATION
+
+From Source:
+git clone https://github.com/daiquiri-98/open-bookmark-sync.git
+cd open-bookmark-sync
+# Load extension/ folder in chrome://extensions (Developer mode)
+
+Chrome Web Store: Coming soon (under review)
+
+UPGRADING FROM v1.2.0
+
+1. Update to v1.3.0 (automatic if using Chrome Web Store)
+2. All settings and data preserved
+3. No configuration changes needed
+
+TESTING CHECKLIST
+
+Please verify after installation:
+- OAuth authentication works
+- Sync operations complete
+- Backup downloads both JSON and HTML files
+- Emergency restore functions correctly
+- Empty bookmark titles preserved
+
+FULL DETAILS
+
+See RELEASE_NOTES_v1.3.0.md for complete changelog and technical details.
+
+BUG REPORTS
+
+Found an issue? Please create a GitHub issue with:
+- Extension version (v1.3.0)
+- Browser and version
+- Steps to reproduce
+- Expected vs actual behavior
+
+SUPPORT
+
+If this extension helps you, consider:
+- Star the repository
+- Buy me a coffee: https://buymeacoffee.com/daiquiri
+- Sponsor on GitHub: https://github.com/sponsors/daiquiri-98
+
+ASSETS
+
+- extension.zip - Ready to load in Chrome (unpacked)
+- Source code - Full repository snapshot
+
+LINKS
+
+- Changelog: CHANGELOG.md
+- Roadmap: ROADMAP.md
+- Privacy Policy: PRIVACY.md
+- GitHub Repository: https://github.com/daiquiri-98/open-bookmark-sync

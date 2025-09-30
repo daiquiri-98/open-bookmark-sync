@@ -8,30 +8,30 @@
 
 **Links**: [Privacy Policy](PRIVACY.md) | [Roadmap](ROADMAP.md) | [Changelog](CHANGELOG.md) | [Support](https://buymeacoffee.com/daiquiri) | [Issues](https://github.com/daiquiri-98/open-bookmark-sync/issues)
 
-## ✨ What's New in v1.3.0
+## What's New in v1.3.0
 
-- **🎯 Chrome Web Store Compliant**: Removed all remote code dependencies
-- **💾 HTML Backup Export**: Automatic JSON + HTML backup downloads (Netscape format)
-- **🔧 Bug Fixes**: Fixed emergency restore, empty bookmark titles preservation
-- **🎨 UI Improvements**: Reorganized sidebar with "Raindrop.io Sync" category
-- **🛠 Tools Enhancement**: New Danger Zone section for advanced operations
-- **📉 Streamlined**: Reduced from 6 to 5 tabs, cleaner navigation
+- **Chrome Web Store Compliant**: Removed all remote code dependencies
+- **HTML Backup Export**: Automatic JSON + HTML backup downloads (Netscape format)
+- **Bug Fixes**: Fixed emergency restore, empty bookmark titles preservation
+- **UI Improvements**: Reorganized sidebar with "Raindrop.io Sync" category
+- **Tools Enhancement**: New Danger Zone section for advanced operations
+- **Streamlined**: Reduced from 6 to 5 tabs, cleaner navigation
 
 [View full changelog →](CHANGELOG.md)
 
 ## Overview
 
 ### Core Features
-- **🔄 Flexible Sync Modes**: One-way, two-way additions-only, or full mirror sync
-- **📁 Smart Organization**: Creates collection-named folders in your bookmarks bar
-- **⏰ Automatic Scheduling**: Configurable sync intervals (1-60+ minutes)
-- **🔐 Secure OAuth2**: Chrome identity API with automatic token refresh
-- **💾 Backup & Restore**: Automatic backups with JSON + HTML export
-- **🧹 Cleanup Tools**: URL parameter cleaning, duplicate detection, empty folder removal
-- **🎨 Modern UI**: Clean, responsive interface with 5 organized tabs
-- **⚡ Performance**: Rate-limit aware with exponential backoff
+- **Flexible Sync Modes**: One-way, two-way additions-only, or full mirror sync
+- **Smart Organization**: Creates collection-named folders in your bookmarks bar
+- **Automatic Scheduling**: Configurable sync intervals (1-60+ minutes)
+- **Secure OAuth2**: Chrome identity API with automatic token refresh
+- **Backup & Restore**: Automatic backups with JSON + HTML export
+- **Cleanup Tools**: URL parameter cleaning, duplicate detection, empty folder removal
+- **Modern UI**: Clean, responsive interface with 5 organized tabs
+- **Performance**: Rate-limit aware with exponential backoff
 
-## 🚀 Installation
+## Installation
 
 ### From Source (Development)
 1. Clone or download this repository
@@ -42,7 +42,7 @@
 ### Chrome Web Store (Coming Soon)
 The extension is currently under review for the Chrome Web Store.
 
-## ⚙️ Setup
+## Setup
 
 ### 1. OAuth Setup (Raindrop.io)
 1. Create an app at [Raindrop.io Developer Portal](https://raindrop.io/developer)
@@ -58,7 +58,7 @@ The extension is currently under review for the Chrome Web Store.
 4. Set sync mode (additions_only recommended for safety)
 5. Enable automatic sync
 
-## 📖 Usage
+## Usage
 
 ### Quick Actions
 - **Popup**: One-click sync, view status, quick settings
@@ -103,11 +103,11 @@ See [PRIVACY.md](PRIVACY.md) for the complete privacy policy.
 ## Chrome Web Store Submission
 
 For Chrome Web Store compliance:
-- ✅ Privacy policy: [PRIVACY.md](PRIVACY.md)
-- ✅ Manifest V3 compliance
-- ✅ Minimal permission usage
-- ✅ No data collection/telemetry
-- ✅ Clear privacy disclosures
-- ✅ GitHub homepage and support links
+- Privacy policy: [PRIVACY.md](PRIVACY.md)
+- Manifest V3 compliance
+- Minimal permission usage
+- No data collection/telemetry
+- Clear privacy disclosures
+- GitHub homepage and support links
 
 License: MIT
