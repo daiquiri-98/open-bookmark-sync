@@ -16,7 +16,7 @@
             --text-muted: #666;
             --panel-bg: #ffffff;
             --header-h: 72px;
-            --sidebar-w: 300px;
+            --sidebar-w: 240px;
             --notification-h: 0px; /* dynamic notification bar height */
         }
         body {
@@ -27,6 +27,496 @@
             font-size: 13px;
             line-height: 1.55;
             color: var(--text);
+        }
+
+        /* Welcome Modal Styles */
+        .welcome-overlay {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.6);
+            z-index: 10000;
+            animation: fadeIn 0.3s ease;
+        }
+        .welcome-overlay.show {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        @keyframes fadeIn {
+            from { opacity: 0; }
+            to { opacity: 1; }
+        }
+        .welcome-modal {
+            background: white;
+            border-radius: 16px;
+            max-width: 600px;
+            width: 90%;
+            max-height: 90vh;
+            overflow-y: auto;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+            animation: slideUp 0.3s ease;
+        }
+        @keyframes slideUp {
+            from { transform: translateY(30px); opacity: 0; }
+            to { transform: translateY(0); opacity: 1; }
+        }
+        .welcome-header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 32px;
+            text-align: center;
+            border-radius: 16px 16px 0 0;
+        }
+        .welcome-header h1 {
+            margin: 0 0 12px 0;
+            font-size: 28px;
+            color: white;
+        }
+        .welcome-header p {
+            margin: 0;
+            opacity: 0.95;
+            font-size: 14px;
+        }
+        .welcome-content {
+            padding: 32px;
+        }
+        .welcome-step {
+            display: flex;
+            gap: 20px;
+            margin-bottom: 28px;
+            padding: 20px;
+            background: #f8f9fa;
+            border-radius: 12px;
+            transition: all 0.2s;
+        }
+        .welcome-step:hover {
+            background: #e9ecef;
+            transform: translateX(4px);
+        }
+        .step-number {
+            flex-shrink: 0;
+            width: 48px;
+            height: 48px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 20px;
+            font-weight: 600;
+        }
+        .step-content h3 {
+            margin: 0 0 8px 0;
+            font-size: 16px;
+            color: #2c3e50;
+        }
+        .step-content p {
+            margin: 0;
+            font-size: 13px;
+            color: #6c757d;
+            line-height: 1.6;
+        }
+        .welcome-actions {
+            display: flex;
+            gap: 12px;
+            justify-content: flex-end;
+            padding: 0 32px 32px 32px;
+        }
+        .welcome-btn {
+            padding: 12px 24px;
+            border: none;
+            border-radius: 8px;
+            font-size: 14px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+        .welcome-btn.primary {
+            background: linear-gradient(135deg, #28a745 0%, #20c997 100%);
+            color: white;
+            box-shadow: 0 4px 12px rgba(40, 167, 69, 0.3);
+        }
+        .welcome-btn.primary:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 16px rgba(40, 167, 69, 0.4);
+        }
+        .welcome-btn.secondary {
+            background: #f8f9fa;
+            color: #495057;
+            border: 1px solid #dee2e6;
+        }
+        .welcome-btn.secondary:hover {
+            background: #e9ecef;
+        }
+
+        /* Button Size Hierarchy */
+        .button, button {
+            height: var(--btn-height-md, 40px);
+            padding: 0 20px;
+            font-size: 14px;
+            font-weight: 500;
+            border-radius: 6px;
+            border: 1px solid transparent;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: 6px;
+        }
+
+        /* Primary (Large) - 48px - Most important actions */
+        .button.btn-lg, .button-large {
+            height: 48px;
+            padding: 0 32px;
+            font-size: 16px;
+            font-weight: 600;
+            border-radius: 8px;
+        }
+
+        /* Medium (Default) - 40px - Standard actions */
+        .button.btn-md, .button-medium {
+            height: 40px;
+            padding: 0 20px;
+            font-size: 14px;
+        }
+
+        /* Small - 32px - Secondary actions */
+        .button.btn-sm, .button-small, .button.small {
+            height: 32px;
+            padding: 0 16px;
+            font-size: 13px;
+        }
+
+        /* Tiny - 28px - Tertiary/inline actions */
+        .button.btn-xs, .button-tiny {
+            height: 28px;
+            padding: 0 12px;
+            font-size: 12px;
+        }
+
+        /* Loading Spinner */
+        .spinner {
+            display: inline-block;
+            width: 14px;
+            height: 14px;
+            border: 2px solid rgba(255,255,255,0.3);
+            border-top-color: #ffffff;
+            border-radius: 50%;
+            animation: spin 0.6s linear infinite;
+            margin-right: 6px;
+        }
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+        .button.loading {
+            opacity: 0.7;
+            pointer-events: none;
+            cursor: not-allowed;
+        }
+
+        /* Progress Bar */
+        .progress-container {
+            width: 100%;
+            background: #e9ecef;
+            border-radius: 8px;
+            overflow: hidden;
+            height: 24px;
+            margin: 12px 0;
+            display: none;
+        }
+        .progress-bar {
+            height: 100%;
+            background: linear-gradient(90deg, var(--accent), var(--accent-hover));
+            transition: width 0.3s ease;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-size: 11px;
+            font-weight: 600;
+        }
+        .progress-container.visible {
+            display: block;
+        }
+
+        /* Floating Action Buttons */
+        .fab {
+            width: 56px;
+            height: 56px;
+            border-radius: 50%;
+            border: none;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+            transition: all 0.3s ease;
+        }
+        .fab:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 16px rgba(0, 0, 0, 0.2);
+        }
+        .fab:active {
+            transform: translateY(0);
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+        }
+        .fab-primary {
+            background: linear-gradient(135deg, var(--accent), var(--accent-hover));
+        }
+        .fab-secondary {
+            background: linear-gradient(135deg, #10b981, #059669);
+        }
+
+        /* Semantic Color System */
+        /* Safe Actions - Green */
+        .button.safe, .button.success {
+            background: #10b981;
+            color: #ffffff;
+            border-color: #059669;
+        }
+        .button.safe:hover, .button.success:hover {
+            background: #059669;
+            border-color: #047857;
+        }
+
+        /* Neutral Actions - Blue (Default) */
+        .button.neutral, .button.info {
+            background: var(--accent, #2563eb);
+            color: #ffffff;
+            border-color: var(--accent-hover, #1d4ed8);
+        }
+        .button.neutral:hover, .button.info:hover {
+            background: var(--accent-hover, #1d4ed8);
+        }
+
+        /* Warning Actions - Orange/Yellow */
+        .button.warning, .button.caution {
+            background: #f59e0b;
+            color: #ffffff;
+            border-color: #d97706;
+        }
+        .button.warning:hover, .button.caution:hover {
+            background: #d97706;
+            border-color: #b45309;
+        }
+
+        /* Danger Actions - Red */
+        .button.danger, .button.critical, .button.destructive {
+            background: #ef4444;
+            color: #ffffff;
+            border-color: #dc2626;
+        }
+        .button.danger:hover, .button.critical:hover, .button.destructive:hover {
+            background: #dc2626;
+            border-color: #b91c1c;
+        }
+
+        /* Typography Scale */
+        :root {
+            /* Font Sizes */
+            --font-xs: 11px;
+            --font-sm: 12px;
+            --font-base: 13px;
+            --font-md: 14px;
+            --font-lg: 16px;
+            --font-xl: 18px;
+            --font-2xl: 22px;
+            --font-3xl: 28px;
+
+            /* Line Heights */
+            --leading-tight: 1.25;
+            --leading-normal: 1.5;
+            --leading-relaxed: 1.75;
+
+            /* Font Weights */
+            --font-normal: 400;
+            --font-medium: 500;
+            --font-semibold: 600;
+            --font-bold: 700;
+
+            /* Button Heights */
+            --btn-height-xs: 28px;
+            --btn-height-sm: 32px;
+            --btn-height-md: 40px;
+            --btn-height-lg: 48px;
+
+            /* Spacing Scale (4px base) */
+            --space-1: 4px;
+            --space-2: 8px;
+            --space-3: 12px;
+            --space-4: 16px;
+            --space-5: 20px;
+            --space-6: 24px;
+            --space-8: 32px;
+            --space-10: 40px;
+            --space-12: 48px;
+        }
+
+        /* Typography Classes */
+        h1, .text-3xl {
+            font-size: var(--font-3xl);
+            font-weight: var(--font-bold);
+            line-height: var(--leading-tight);
+        }
+
+        h2, .text-2xl {
+            font-size: var(--font-2xl);
+            font-weight: var(--font-semibold);
+            line-height: var(--leading-tight);
+        }
+
+        h3, .text-xl {
+            font-size: var(--font-xl);
+            font-weight: var(--font-semibold);
+            line-height: var(--leading-normal);
+        }
+
+        h4, .text-lg {
+            font-size: var(--font-lg);
+            font-weight: var(--font-medium);
+            line-height: var(--leading-normal);
+        }
+
+        p, .text-base {
+            font-size: var(--font-base);
+            line-height: var(--leading-relaxed);
+        }
+
+        .text-sm {
+            font-size: var(--font-sm);
+            line-height: var(--leading-normal);
+        }
+
+        .text-xs {
+            font-size: var(--font-xs);
+            line-height: var(--leading-normal);
+        }
+
+        .help-text, .text-muted {
+            font-size: var(--font-sm);
+            color: var(--text-muted, #6c757d);
+            line-height: var(--leading-normal);
+        }
+
+        /* Notification Bar Styles - Theme Aware */
+        .notification-bar {
+            padding: 8px 20px;
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            z-index: 2000;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            font-size: 13px;
+            font-weight: 500;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+            transition: all 0.3s ease;
+        }
+
+        /* Modern notification bar - uses theme colors */
+        .notification-bar-modern {
+            background: var(--accent, #4f46e5);
+            color: #ffffff;
+        }
+
+        .notification-bar-modern .notification-icon-box {
+            width: 28px;
+            height: 28px;
+            background: rgba(255,255,255,0.2);
+            border-radius: 6px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        .notification-bar-modern .notification-icon-box .icon {
+            width: 16px;
+            height: 16px;
+            opacity: 0.95;
+        }
+
+        .notification-bar-modern .notification-title {
+            font-weight: 600;
+            font-size: 13px;
+            margin-bottom: 1px;
+        }
+
+        .notification-bar-modern .notification-subtitle {
+            font-size: 11px;
+            opacity: 0.9;
+        }
+
+        .notification-bar-modern .notification-btn {
+            background: rgba(255,255,255,0.15);
+            color: #ffffff;
+            border: 1px solid rgba(255,255,255,0.3);
+            padding: 6px 14px;
+            border-radius: 6px;
+            font-size: 12px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            backdrop-filter: blur(10px);
+        }
+
+        .notification-bar-modern .notification-btn:hover {
+            background: rgba(255,255,255,0.25);
+        }
+
+        .notification-bar-modern .notification-close {
+            background: none;
+            border: none;
+            font-size: 18px;
+            color: rgba(255,255,255,0.8);
+            cursor: pointer;
+            padding: 8px;
+            border-radius: 4px;
+            transition: all 0.2s ease;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .notification-bar-modern .notification-close:hover {
+            background: rgba(255,255,255,0.1);
+            color: #ffffff;
+        }
+
+        /* Minimal notification bar - theme aware */
+        .notification-bar-minimal {
+            background: var(--accent-light, #fef3c7);
+            color: var(--accent-dark-text, #92400e);
+            padding: 8px 20px;
+            font-size: 13px;
+            border-bottom: 1px solid var(--accent, #fbbf24);
+        }
+
+        .notification-bar-minimal .notification-btn {
+            background: var(--accent, #f59e0b);
+            color: #ffffff;
+            border: none;
+            padding: 4px 12px;
+            border-radius: 4px;
+            font-size: 11px;
+            font-weight: 600;
+            cursor: pointer;
+        }
+
+        .notification-bar-minimal .notification-close {
+            background: none;
+            border: none;
+            font-size: 18px;
+            color: var(--accent-dark-text, #92400e);
+            cursor: pointer;
+            padding: 2px 6px;
+            border-radius: 2px;
         }
 
         .container {
@@ -422,9 +912,15 @@
             box-sizing: border-box;
             transition: top 0.35s ease;
         }
-        body.layout-sidebar .main { display: block; }
-        body.layout-sidebar .sidebar {
+        body.layout-sidebar .main {
             display: block;
+            width: 100%;
+            margin: 0;
+            max-width: none;
+        }
+        body.layout-sidebar .sidebar {
+            display: flex;
+            flex-direction: column;
             width: var(--sidebar-w);
             background: #ffffff;
             border-right: 1px solid #e9ecef;
@@ -448,8 +944,57 @@
         body.layout-sidebar .tabs { display: none; }
         body.layout-sidebar .tab-content .section { margin: 0 0 12px 0; }
 
-        .sidebar-section { margin-bottom: 16px; }
-        .sidebar-title { font-size: 12px; font-weight: 600; color: #2f3137; text-transform: uppercase; padding: 8px 10px; }
+        .sidebar-section {
+            margin-bottom: 16px;
+            display: flex;
+            flex-direction: column;
+            align-items: flex-start;
+        }
+        .sidebar-title {
+            font-size: 12px;
+            font-weight: 600;
+            color: #2f3137;
+            text-transform: uppercase;
+            padding: 8px 10px;
+            width: 100%;
+            text-align: left;
+        }
+        .sidebar-title.collapsible {
+            cursor: pointer;
+            user-select: none;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            transition: background 0.2s;
+        }
+        .sidebar-title.collapsible:hover {
+            background: rgba(0,0,0,0.03);
+            border-radius: 4px;
+        }
+        .sidebar-title .collapse-icon {
+            transition: transform 0.2s;
+            opacity: 0.6;
+        }
+        .sidebar-title.collapsed .collapse-icon {
+            transform: rotate(-90deg);
+        }
+        .sidebar-title svg {
+            flex-shrink: 0;
+        }
+        .sidebar-links {
+            max-height: 500px;
+            overflow: hidden;
+            transition: max-height 0.3s ease, opacity 0.3s ease;
+            opacity: 1;
+            width: 100%;
+            display: flex;
+            flex-direction: column;
+            align-items: flex-start;
+        }
+        .sidebar-links.collapsed {
+            max-height: 0;
+            opacity: 0;
+        }
         .side-link {
             width: 100%;
             text-align: left;
@@ -458,12 +1003,24 @@
             padding: 8px 10px;
             border-radius: 6px;
             cursor: pointer;
-            color: #7a828c; /* slightly more muted for inactive */
+            color: #7a828c;
             font-weight: 400;
-            display: block;
+            display: flex;
+            align-items: center;
+            justify-content: flex-start;
+            gap: 8px;
+        }
+        .side-link .icon {
+            width: 16px;
+            height: 16px;
+            flex-shrink: 0;
+            opacity: 0.65;
+            transition: opacity 0.2s;
         }
         .side-link:hover { background: #f1f3f5; }
+        .side-link:hover .icon { opacity: 0.9; }
         .side-link.active { background: #eef2f7; color: #2f3137; }
+        .side-link.active .icon { opacity: 1; }
         .side-link.danger.active, .side-link.danger { color: #dc3545; }
 
         /* Softer placeholders */
@@ -808,10 +1365,19 @@
             font-size: 13px;
             transition: all 0.2s ease;
         }
+        .header-link .icon {
+            width: 14px;
+            height: 14px;
+            opacity: 0.7;
+            transition: opacity 0.2s;
+        }
         .header-link:hover {
             background: #e9ecef;
             border-color: #dee2e6;
             transform: translateY(-1px);
+        }
+        .header-link:hover .icon {
+            opacity: 1;
         }
         .header-link.primary {
             background: #007cba;
@@ -845,158 +1411,78 @@
             --btn-warning-fg: #fff;
             --btn-warning-hover: #d97706;
         }
-        /* Modern Minimal Themes - Clean & Contemporary */
+        /* Minimal Professional Themes - Muted & Sophisticated */
 
-        /* Default/Original - Clean Blue */
-        [data-theme="default"] {
-            --accent: #2563eb;
-            --accent-hover: #1d4ed8;
-            --accent-strong: #1e40af;
+        /* Slate - Professional Gray (Default) */
+        [data-theme="slate"] {
+            --accent: #64748b;
+            --accent-hover: #475569;
+            --accent-strong: #334155;
             --btn-normal-bg: #f8fafc;
             --btn-normal-fg: #334155;
             --btn-normal-hover: #f1f5f9;
-            --btn-primary-bg: #2563eb;
+            --btn-primary-bg: #64748b;
             --btn-primary-fg: #ffffff;
-            --btn-primary-hover: #1d4ed8;
+            --btn-primary-hover: #475569;
             --btn-secondary-bg: #e2e8f0;
             --btn-secondary-fg: #475569;
             --btn-secondary-hover: #cbd5e1;
         }
 
-        /* Nordic - Cool Scandinavian */
-        [data-theme="nordic"] {
-            --accent: #5e81ac;
-            --accent-hover: #4c566a;
-            --accent-strong: #434c5e;
-            --btn-normal-bg: #eceff4;
-            --btn-normal-fg: #2e3440;
-            --btn-normal-hover: #e5e9f0;
-            --btn-primary-bg: #5e81ac;
-            --btn-primary-fg: #eceff4;
-            --btn-primary-hover: #4c566a;
-            --btn-secondary-bg: #d8dee9;
-            --btn-secondary-fg: #3b4252;
-            --btn-secondary-hover: #e5e9f0;
-        }
-
-        /* Emerald - Modern Green */
-        [data-theme="emerald"] {
-            --accent: #059669;
-            --accent-hover: #047857;
-            --accent-strong: #065f46;
-            --btn-normal-bg: #f0fdf4;
-            --btn-normal-fg: #14532d;
-            --btn-normal-hover: #dcfce7;
-            --btn-primary-bg: #059669;
+        /* Charcoal - Sophisticated Dark */
+        [data-theme="charcoal"] {
+            --accent: #52525b;
+            --accent-hover: #3f3f46;
+            --accent-strong: #27272a;
+            --btn-normal-bg: #fafafa;
+            --btn-normal-fg: #27272a;
+            --btn-normal-hover: #f4f4f5;
+            --btn-primary-bg: #52525b;
             --btn-primary-fg: #ffffff;
-            --btn-primary-hover: #047857;
-            --btn-secondary-bg: #bbf7d0;
-            --btn-secondary-fg: #166534;
-            --btn-secondary-hover: #86efac;
+            --btn-primary-hover: #3f3f46;
+            --btn-secondary-bg: #e4e4e7;
+            --btn-secondary-fg: #3f3f46;
+            --btn-secondary-hover: #d4d4d8;
         }
 
-        /* Sunset - Warm Orange */
-        [data-theme="sunset"] {
-            --accent: #ea580c;
-            --accent-hover: #c2410c;
-            --accent-strong: #9a3412;
-            --btn-normal-bg: #fff7ed;
-            --btn-normal-fg: #7c2d12;
-            --btn-normal-hover: #fed7aa;
-            --btn-primary-bg: #ea580c;
+        /* Ocean - Muted Blue-Gray */
+        [data-theme="ocean"] {
+            --accent: #5b7c99;
+            --accent-hover: #456073;
+            --accent-strong: #34495e;
+            --btn-normal-bg: #f7f9fb;
+            --btn-normal-fg: #2c3e50;
+            --btn-normal-hover: #ecf0f3;
+            --btn-primary-bg: #5b7c99;
             --btn-primary-fg: #ffffff;
-            --btn-primary-hover: #c2410c;
-            --btn-secondary-bg: #fed7aa;
-            --btn-secondary-fg: #9a3412;
-            --btn-secondary-hover: #fdba74;
+            --btn-primary-hover: #456073;
+            --btn-secondary-bg: #dfe6ed;
+            --btn-secondary-fg: #456073;
+            --btn-secondary-hover: #d0dae3;
         }
 
-        /* Lavender - Soft Purple */
-        [data-theme="lavender"] {
-            --accent: #8b5cf6;
-            --accent-hover: #7c3aed;
-            --accent-strong: #6d28d9;
-            --btn-normal-bg: #faf5ff;
-            --btn-normal-fg: #581c87;
-            --btn-normal-hover: #f3e8ff;
-            --btn-primary-bg: #8b5cf6;
-            --btn-primary-fg: #ffffff;
-            --btn-primary-hover: #7c3aed;
-            --btn-secondary-bg: #ddd6fe;
-            --btn-secondary-fg: #6d28d9;
-            --btn-secondary-hover: #c4b5fd;
-        }
-
-        /* Rose - Elegant Pink */
-        [data-theme="rose"] {
-            --accent: #e11d48;
-            --accent-hover: #be123c;
-            --accent-strong: #9f1239;
-            --btn-normal-bg: #fff1f2;
-            --btn-normal-fg: #881337;
-            --btn-normal-hover: #ffe4e6;
-            --btn-primary-bg: #e11d48;
-            --btn-primary-fg: #ffffff;
-            --btn-primary-hover: #be123c;
-            --btn-secondary-bg: #fecdd3;
-            --btn-secondary-fg: #9f1239;
-            --btn-secondary-hover: #fda4af;
-        }
-
-        /* Slate - Professional Gray */
-        [data-theme="slate"] {
-            --accent: #475569;
-            --accent-hover: #334155;
-            --accent-strong: #1e293b;
-            --btn-normal-bg: #f8fafc;
-            --btn-normal-fg: #1e293b;
-            --btn-normal-hover: #f1f5f9;
-            --btn-primary-bg: #475569;
-            --btn-primary-fg: #ffffff;
-            --btn-primary-hover: #334155;
-            --btn-secondary-bg: #e2e8f0;
-            --btn-secondary-fg: #475569;
-            --btn-secondary-hover: #cbd5e1;
-        }
-
-        /* Cyber - Electric Blue */
-        [data-theme="cyber"] {
-            --accent: #06b6d4;
-            --accent-hover: #0891b2;
-            --accent-strong: #0e7490;
-            --btn-normal-bg: #ecfeff;
-            --btn-normal-fg: #164e63;
-            --btn-normal-hover: #cffafe;
-            --btn-primary-bg: #06b6d4;
-            --btn-primary-fg: #ffffff;
-            --btn-primary-hover: #0891b2;
-            --btn-secondary-bg: #a5f3fc;
-            --btn-secondary-fg: #0e7490;
-            --btn-secondary-hover: #67e8f9;
-        }
-
-        /* Dark mode overrides */
+        /* Dark mode overrides - Anthracite Gray Theme */
         :root[data-color-mode="dark"] {
-            --panel-bg: #1f2937;
-            --text: #e5e7eb;
-            --text-muted: #9ca3af;
-            --border-soft: #374151;
+            --panel-bg: #2d2d2d;
+            --text: #e8e8e8;
+            --text-muted: #9a9a9a;
+            --border-soft: #404040;
         }
-        :root[data-color-mode="dark"] body { background-color: #0f172a; color: var(--text); }
-        :root[data-color-mode="dark"] .header { background: #0b1220; border-bottom-color: #374151; }
-        :root[data-color-mode="dark"] .sidebar { background: #0b1220; border-right-color: #374151; }
-        :root[data-color-mode="dark"] .main-content { background: #111827; }
-        :root[data-color-mode="dark"] .header-link { background: #1f2937; border-color: #374151; color: #e5e7eb; }
-        :root[data-color-mode="dark"] .header-link:hover { background: #374151; border-color: #4b5563; }
-        :root[data-color-mode="dark"] .tab-btn { background: #1f2937; border-color: #374151; color: #e5e7eb; }
-        :root[data-color-mode="dark"] .tab-btn.active { background: #111827; color: #ffffff; }
+        :root[data-color-mode="dark"] body { background-color: #1a1a1a; color: var(--text); }
+        :root[data-color-mode="dark"] .header { background: #252525; border-bottom-color: #404040; }
+        :root[data-color-mode="dark"] .sidebar { background: #252525; border-right-color: #404040; }
+        :root[data-color-mode="dark"] .main-content { background: #222222; }
+        :root[data-color-mode="dark"] .header-link { background: #2d2d2d; border-color: #404040; color: #e8e8e8; }
+        :root[data-color-mode="dark"] .header-link:hover { background: #383838; border-color: #4a4a4a; }
+        :root[data-color-mode="dark"] .tab-btn { background: #2d2d2d; border-color: #404040; color: #e8e8e8; }
+        :root[data-color-mode="dark"] .tab-btn.active { background: #222222; color: #ffffff; }
         :root[data-color-mode="dark"] .section { background: var(--panel-bg); border-color: var(--border-soft); }
         :root[data-color-mode="dark"] .help-text { color: var(--text-muted); }
-        :root[data-color-mode="dark"] input, :root[data-color-mode="dark"] select, :root[data-color-mode="dark"] .toggle-eye { background-color: #111827; color: #e5e7eb; border-color: #374151 !important; }
-        :root[data-color-mode="dark"] .button.secondary { background-color: #4b5563; }
-        :root[data-color-mode="dark"] .status.success { background: #16361d; color: #86efac; border-color: #14532d; }
-        :root[data-color-mode="dark"] .status.error { background: #3f1d20; color: #fecaca; border-color: #7f1d1d; }
-        :root[data-color-mode="dark"] .status.info { background: #112b34; color: #7dd3fc; border-color: #155e75; }
+        :root[data-color-mode="dark"] input, :root[data-color-mode="dark"] select, :root[data-color-mode="dark"] .toggle-eye { background-color: #2a2a2a; color: #e8e8e8; border-color: #404040 !important; }
+        :root[data-color-mode="dark"] .button.secondary { background-color: #3d3d3d; color: #e8e8e8; }
+        :root[data-color-mode="dark"] .status.success { background: #1e3a1e; color: #86efac; border-color: #2d5a2d; }
+        :root[data-color-mode="dark"] .status.error { background: #3a1e1e; color: #fecaca; border-color: #5a2d2d; }
+        :root[data-color-mode="dark"] .status.info { background: #1e2a3a; color: #7dd3fc; border-color: #2d3d5a; }
 
         /* Apply theme accents only to explicitly marked primary actions */
         .button.primary { background-color: var(--accent) !important; }
@@ -1021,140 +1507,62 @@
 </head>
 <body class="layout-sidebar">
     <!-- Beta Software Notification Bar - Professional Design -->
-    <div id="betaNotificationBar" style="
-        background: linear-gradient(135deg, #4f46e5 0%, #7c3aed 100%);
-        color: #ffffff;
-        padding: 12px 24px;
-        position: fixed;
-        top: 0;
-        left: 0;
-        right: 0;
-        z-index: 2000;
-        display: flex;
-        align-items: center;
-        justify-content: space-between;
-        font-size: 14px;
-        font-weight: 500;
-        box-shadow: 0 2px 8px rgba(0,0,0,0.1);
-        transition: all 0.3s ease;
-    ">
+    <div id="betaNotificationBar" class="notification-bar notification-bar-modern">
         <div style="display: flex; align-items: center; gap: 12px;">
-            <div style="
-                width: 32px;
-                height: 32px;
-                background: rgba(255,255,255,0.2);
-                border-radius: 8px;
-                display: flex;
-                align-items: center;
-                justify-content: center;
-                font-size: 16px;
-            ">⚠️</div>
+            <div class="notification-icon-box">
+                <img src="icons/notification.svg" alt="" class="icon">
+            </div>
             <div>
-                <div style="font-weight: 600; font-size: 14px; margin-bottom: 2px;">Beta Software Notice</div>
-                <div style="font-size: 12px; opacity: 0.9;">Always backup your bookmarks before making changes</div>
+                <div class="notification-title">Beta Software Notice</div>
+                <div class="notification-subtitle">Always backup your bookmarks before making changes</div>
             </div>
         </div>
         <div style="display: flex; align-items: center; gap: 12px;">
-            <button id="quickBackupBtn" style="
-                background: rgba(255,255,255,0.15);
-                color: #ffffff;
-                border: 1px solid rgba(255,255,255,0.3);
-                padding: 8px 16px;
-                border-radius: 6px;
-                font-size: 12px;
-                font-weight: 600;
-                cursor: pointer;
-                transition: all 0.2s ease;
-                backdrop-filter: blur(10px);
-            "
-            onmouseover="this.style.background='rgba(255,255,255,0.25)'"
-            onmouseout="this.style.background='rgba(255,255,255,0.15)'"
-            title="Create backup now">
-                <span style="margin-right: 6px;">💾</span>Backup Now
+            <button id="quickBackupBtn" class="notification-btn" title="Create backup now">
+                <img src="icons/layers.svg" alt="" class="icon" style="margin-right: 6px; width: 14px; height: 14px;">
+                Backup Now
             </button>
-            <button id="closeBetaNotificationBar" style="
-                background: none;
-                border: none;
-                font-size: 18px;
-                color: rgba(255,255,255,0.8);
-                cursor: pointer;
-                padding: 8px;
-                border-radius: 4px;
-                transition: all 0.2s ease;
-                display: flex;
-                align-items: center;
-                justify-content: center;
-            "
-            onmouseover="this.style.background='rgba(255,255,255,0.1)'; this.style.color='#ffffff';"
-            onmouseout="this.style.background='none'; this.style.color='rgba(255,255,255,0.8)';"
-            title="Close notification">×</button>
+            <button id="closeBetaNotificationBar" class="notification-close" title="Close notification">×</button>
         </div>
     </div>
 
     <!-- Alternative Beta Notification Bar - Minimal Design (hidden by default) -->
-    <div id="betaNotificationBarAlt" style="
-        background: #fef3c7;
-        color: #92400e;
-        padding: 8px 20px;
-        position: fixed;
-        top: 0;
-        left: 0;
-        right: 0;
-        z-index: 2000;
-        display: none;
-        align-items: center;
-        justify-content: space-between;
-        font-size: 13px;
-        font-weight: 500;
-        border-bottom: 1px solid #fbbf24;
-        transition: all 0.3s ease;
-    ">
+    <div id="betaNotificationBarAlt" class="notification-bar notification-bar-minimal" style="display: none;">
         <div style="display: flex; align-items: center; gap: 8px;">
-            <span style="color: #f59e0b;">⚠️</span>
+            <img src="icons/notification.svg" alt="" class="icon" style="width: 14px; height: 14px; opacity: 1;">
             <span><strong>Beta Software:</strong> Always backup your bookmarks before making changes</span>
         </div>
         <div style="display: flex; align-items: center; gap: 12px;">
-            <button id="quickBackupBtnAlt" style="
-                background: #f59e0b;
-                color: #ffffff;
-                border: none;
-                padding: 4px 12px;
-                border-radius: 4px;
-                font-size: 11px;
-                font-weight: 600;
-                cursor: pointer;
-            " title="Create backup now">Backup</button>
-            <button id="closeBetaNotificationBarAlt" style="
-                background: none;
-                border: none;
-                font-size: 18px;
-                color: #92400e;
-                cursor: pointer;
-                padding: 2px 6px;
-                border-radius: 2px;
-            " title="Close notification">×</button>
+            <button id="quickBackupBtnAlt" class="notification-btn" title="Create backup now">Backup</button>
+            <button id="closeBetaNotificationBarAlt" class="notification-close" title="Close notification">×</button>
         </div>
     </div>
 
     <div class="container">
         <div class="header">
-            <h1>Open Bookmark Sync</h1>
+            <div style="display: flex; align-items: center; gap: 16px;">
+                <h1>Open Bookmark Sync</h1>
+                <div id="nextSyncCountdown" style="font-size: 13px; color: #666; display: none;">
+                    Next sync in: <span id="countdownTimer" style="font-weight: 600; color: var(--accent);">--:--</span>
+                </div>
+                <div id="quickStatusBadges" style="display: flex; gap: 6px; font-size: 11px;">
+                    <span id="quietHoursBadge" style="display: none; background: #f59e0b; color: white; padding: 3px 8px; border-radius: 12px; font-weight: 600;">🌙 Quiet</span>
+                    <span id="lowBatteryBadge" style="display: none; background: #dc3545; color: white; padding: 3px 8px; border-radius: 12px; font-weight: 600;">🔋 Low</span>
+                    <span id="meteredBadge" style="display: none; background: #0dcaf0; color: white; padding: 3px 8px; border-radius: 12px; font-weight: 600;">📶 Metered</span>
+                </div>
+            </div>
             <div class="header-actions">
                 <a id="siteLink" class="header-link" href="#" target="_blank" rel="noopener noreferrer">
-                    <span>🏠</span>
-                    <span>Visit Website</span>
+                    <img src="icons/home.svg" alt="" class="icon">
+                    <span>Website</span>
                 </a>
                 <a href="mailto:dagkan@daiquiri.dev?subject=Raindrop%20Browser%20Sync%20-%20Issue%20Report&body=Hi%2C%0A%0AI%20found%20an%20issue%20with%20the%20Raindrop%20Browser%20Sync%20extension%3A%0A%0A%5BPlease%20describe%20the%20issue%20here%5D%0A%0AThanks%21" class="header-link">
-                    <span>📧</span>
-                    <span>Report Issues</span>
+                    <img src="icons/mail.svg" alt="" class="icon">
+                    <span>Report Issue</span>
                 </a>
                 <a href="https://github.com/sponsors/daiquiri-98" class="header-link primary" target="_blank" rel="noopener noreferrer">
-                    <span>💖</span>
+                    <img src="icons/heart.svg" alt="" class="icon">
                     <span>Sponsor</span>
-                </a>
-                <a id="bmcLink" class="bmc-link" href="https://buymeacoffee.com/daiquiri" target="_blank" rel="noopener noreferrer">
-                    <span>☕</span>
-                    <span>Buy me a coffee</span>
                 </a>
             </div>
         </div>
@@ -1163,30 +1571,60 @@
 
         <div class="main">
             <nav class="sidebar" aria-label="Sidebar Navigation">
+                <!-- Raindrop.io Sync - Always visible -->
                 <div class="sidebar-section">
                     <div class="sidebar-title">Raindrop.io Sync</div>
-                    <button class="side-link" data-tab="api">Connect</button>
-                    <button class="side-link" data-tab="sync">Sync</button>
-                    <button class="side-link" data-tab="guide">Guide</button>
+                    <div class="sidebar-links">
+                        <button class="side-link" data-tab="api">
+                            <img src="icons/connect.svg" alt="" class="icon">
+                            Connect
+                        </button>
+                        <button class="side-link" data-tab="sync">
+                            <img src="icons/sync.svg" alt="" class="icon">
+                            Sync Settings
+                        </button>
+                    </div>
                 </div>
+
+                <!-- More - Collapsible -->
                 <div class="sidebar-section">
-                    <div class="sidebar-title">Maintenance</div>
-                    <button class="side-link" data-tab="import">Import/Export</button>
-                    <button class="side-link" data-tab="backup">Backup & Restore</button>
-                    <button class="side-link" data-tab="duplicates">Duplicates</button>
-                    <button class="side-link danger" data-tab="danger">Danger Zone ⚠️</button>
+                    <div class="sidebar-title collapsible" data-section="more">
+                        <span>More</span>
+                        <img src="icons/chevron.svg" alt="" class="collapse-icon" style="width: 10px; height: 10px;">
+                    </div>
+                    <div class="sidebar-links" data-links="more">
+                        <button class="side-link" data-tab="tools">
+                            <img src="icons/tools.svg" alt="" class="icon">
+                            Tools
+                        </button>
+                        <button class="side-link" data-tab="general">
+                            <img src="icons/settings.svg" alt="" class="icon">
+                            Settings
+                        </button>
+                        <button class="side-link" data-tab="help">
+                            <img src="icons/help.svg" alt="" class="icon">
+                            Help
+                        </button>
+                    </div>
                 </div>
-                <div class="sidebar-section">
-                    <div class="sidebar-title">Settings</div>
-                    <button class="side-link" data-tab="general">General</button>
-                </div>
-                <div class="sidebar-section">
-                    <div class="sidebar-title">Resources</div>
-                    <button class="side-link" data-tab="support">Support</button>
-                    <button class="side-link" data-tab="roadmap">Roadmap</button>
-                    <button class="side-link" data-tab="bmc">Buy Me a Coffee</button>
+                <div style="padding: 16px 10px; margin-top: auto; border-top: 1px solid #e9ecef;">
+                    <div style="font-size: 11px; color: #6c757d; text-align: center;">
+                        <div style="margin-bottom: 4px;">Open Bookmark Sync</div>
+                        <div style="font-weight: 600;">v1.3.0</div>
+                    </div>
                 </div>
             </nav>
+
+            <!-- Floating Action Buttons -->
+            <div id="floatingActions" style="position: fixed; bottom: 24px; right: 32px; display: flex; flex-direction: column; gap: 12px; z-index: 1000;">
+                <button id="fabSync" class="fab fab-primary" title="Sync Now (Ctrl+S)">
+                    <img src="icons/sync.svg" alt="Sync" style="width: 20px; height: 20px; filter: brightness(0) invert(1);">
+                </button>
+                <button id="fabBackup" class="fab fab-secondary" title="Backup Now (Ctrl+B)">
+                    <img src="icons/layers.svg" alt="Backup" style="width: 20px; height: 20px; filter: brightness(0) invert(1);">
+                </button>
+            </div>
+
             <div class="main-content">
                 <div class="tab-content">
         <div id="statusMessage" class="status hidden" style="position: sticky; top: 0; z-index: 5; margin: 0 0 10px 0;"></div>
@@ -1439,113 +1877,165 @@
             </div>
 
             <div class="form-group" style="margin-top: 12px;">
-                <button id="syncNow" class="button">Sync Now</button>
+                <div style="display: flex; gap: 8px; align-items: center;">
+                    <button id="syncNow" class="button">Sync Now</button>
+                    <button id="retrySyncBtn" class="button warning" style="display: none;">🔄 Retry</button>
+                </div>
+                <div class="progress-container" id="syncProgress">
+                    <div class="progress-bar" id="syncProgressBar" style="width: 0%;">0%</div>
+                </div>
+                <div id="syncMetrics" style="margin-top: 8px; font-size: 12px; color: #666; display: none;">
+                    Last sync: <span id="lastSyncStats">--</span>
+                </div>
             </div>
             </div> <!-- end syncSettings container -->
         </div>
 
-        <div class="section tab-panel" id="tab-guide" data-tab="guide">
-            <h2>Setup Guide</h2>
-            <p class="support-text">Step-by-step guide to set up and configure Raindrop.io synchronization.</p>
+        <div class="section tab-panel" id="tab-tools" data-tab="tools">
+            <h2>🛠️ Tools</h2>
+            <p class="help-text">Import, export, backup, and cleanup utilities for managing your bookmarks.</p>
 
-            <div class="support-section">
-                <h3>🚀 Quick Setup</h3>
-                <ol style="margin: 16px 0; padding-left: 20px; line-height: 1.8;">
-                    <li><strong>Choose Authentication Method:</strong> Go to Connect tab and select "Managed OAuth" (recommended) or "Manual Configuration"</li>
-                    <li><strong>Authenticate:</strong> Click "Authenticate with Raindrop" - no additional setup needed for Managed OAuth</li>
-                    <li><strong>Configure Sync Settings:</strong> In the Sync tab, choose your sync mode and interval</li>
-                    <li><strong>Select Target Folder:</strong> Choose which browser bookmarks folder to sync to</li>
-                    <li><strong>Choose Collections:</strong> Select which Raindrop collections to sync</li>
-                    <li><strong>Enable Sync:</strong> Check "Enable Raindrop Sync" to start automatic synchronization</li>
-                </ol>
-            </div>
+            <!-- Import & Export Section -->
+            <div class="form-group" style="border: 1px solid #e9ecef; border-radius: 8px; padding: 16px; margin-bottom: 20px;">
+                <h3>📥 Import & Export</h3>
 
-            <div class="support-section">
-                <h3>💡 Tips for Best Results</h3>
-                <ul style="margin: 16px 0; padding-left: 20px; line-height: 1.6;">
-                    <li><strong>Authentication:</strong> Use "Managed OAuth" for easier setup - no need to create Raindrop app</li>
-                    <li><strong>Safety First:</strong> Start with "One-way: Raindrop → Browser" sync mode (default)</li>
-                    <li><strong>Collections:</strong> Use "Top-level only" collections setting initially</li>
-                    <li><strong>Testing:</strong> Test with a longer sync interval (15-30 minutes) at first</li>
-                    <li><strong>Backup:</strong> Export your bookmarks before making major changes</li>
-                    <li><strong>Verification:</strong> Use the "Test Connection" button to verify your setup</li>
-                </ul>
-            </div>
-
-            <div class="support-section">
-                <h3>🔐 Authentication Methods</h3>
-                <div style="margin: 16px 0;">
-                    <div style="margin-bottom: 12px;">
-                        <strong>Managed OAuth (Recommended)</strong> - Easy setup using our secure authentication service. No need to create a Raindrop app or manage secrets.
-                    </div>
-                    <div style="margin-bottom: 12px;">
-                        <strong>Manual Configuration</strong> - For advanced users. Requires creating your own Raindrop app and entering Client ID/Secret manually.
-                    </div>
-                </div>
-            </div>
-
-            <div class="support-section">
-                <h3>⚙️ Sync Modes Explained</h3>
-                <div style="margin: 16px 0;">
-                    <div style="margin-bottom: 12px;">
-                        <strong>One-way: Raindrop → Browser (Default)</strong> - Safest option. Downloads Raindrop bookmarks to browser only. Perfect for first-time users.
-                    </div>
-                    <div style="margin-bottom: 12px;">
-                        <strong>Two-way: Additions only</strong> - Safe bi-directional sync. Only adds new bookmarks, never deletes anything.
-                    </div>
-                    <div style="margin-bottom: 12px;">
-                        <strong>Two-way: Mirror</strong> - Bi-directional sync with additions and updates. Never deletes from Raindrop for safety.
-                    </div>
-                    <div style="margin-bottom: 12px;">
-                        <strong>One-way: Browser → Raindrop</strong> - Uploads browser bookmarks to Raindrop only. Good for backing up browser bookmarks.
-                    </div>
-                </div>
-            </div>
-        </div>
-
-        <div class="section tab-panel" id="tab-import" data-tab="import">
-            <h2>Import & Export</h2>
-
-            <!-- Automatic Backup Status -->
-            <div class="form-group">
-                <div class="help-text" style="background: #f3f4f6; padding: 12px; border-radius: 6px; margin-bottom: 16px;">
-                    💡 <strong>Note:</strong> For backup and restore operations, please use the dedicated <strong>Backup & Restore</strong> tab in the sidebar.
-                </div>
-            </div>
-
-
-            <div class="form-group">
-                <h3>Export Bookmarks</h3>
                 <div style="margin: 12px 0;">
+                    <h4 style="font-size: 14px; margin-bottom: 8px;">Export Bookmarks</h4>
                     <button id="exportBookmarks" class="button secondary" type="button">Export All Bookmarks (JSON)</button>
-                    <div class="help-text">Downloads all your bookmarks as a JSON file for backup or transfer.</div>
+                    <div class="help-text" style="margin-top: 4px;">Downloads all your bookmarks as a JSON file for backup or transfer.</div>
                 </div>
-            </div>
 
-            <div class="form-group">
-                <h3>Import Bookmarks</h3>
                 <div style="margin: 12px 0;">
+                    <h4 style="font-size: 14px; margin-bottom: 8px;">Import Bookmarks</h4>
                     <input type="file" id="importFile" accept=".json,.html,.htm" style="margin-bottom: 8px;" />
                     <button id="importBookmarks" class="button secondary" type="button" disabled>Import Bookmarks</button>
-                    <div class="help-text">
-                        Supports:
-                        <ul style="margin: 8px 0; padding-left: 20px;">
-                            <li><strong>JSON:</strong> Chrome/Brave bookmark exports or our backup format</li>
-                            <li><strong>HTML:</strong> Standard browser bookmark exports</li>
-                        </ul>
+                    <div class="help-text" style="margin-top: 4px;">
+                        Supports JSON (Chrome/Brave exports) and HTML (standard browser exports)
+                    </div>
+                </div>
+
+                <div style="margin: 12px 0; padding: 12px; border: 1px solid #f59e0b; background: #fffbeb; border-radius: 6px;">
+                    <h4 style="font-size: 14px; margin-bottom: 8px; color: #92400e;">⚠️ Emergency Restore</h4>
+                    <button id="emergencyRestore" class="button danger" type="button">Emergency Restore (Clear All + Restore)</button>
+                    <div class="help-text" style="color: #92400e; margin-top: 4px;">
+                        <strong>Use only if bookmarks are corrupted:</strong> This will delete ALL current bookmarks and restore from a backup file.
                     </div>
                 </div>
             </div>
 
-            <div class="form-group">
-                <h3>⚠️ Emergency Restore</h3>
-                <div style="margin: 12px 0; padding: 12px; border: 1px solid #f59e0b; background: #fffbeb; border-radius: 6px;">
-                    <div style="margin-bottom: 8px;">
-                        <button id="emergencyRestore" class="button danger" type="button">Emergency Restore (Clear All + Restore)</button>
+            <!-- Backup & Restore Section -->
+            <div class="form-group" style="border: 1px solid #e9ecef; border-radius: 8px; padding: 16px; margin-bottom: 20px;">
+                <h3>💾 Backup & Restore</h3>
+
+                <div style="margin: 12px 0;">
+                    <h4 style="font-size: 14px; margin-bottom: 8px;">📚 Backup Version History</h4>
+                    <div id="backupVersionHistory" style="padding: 12px; border: 1px solid #e9ecef; border-radius: 6px; background: #f8f9fa; max-height: 300px; overflow-y: auto;">
+                        <div class="help-text">Loading backup history...</div>
                     </div>
-                    <div class="help-text" style="color: #92400e;">
-                        <strong>Use only if bookmarks are corrupted:</strong> This will delete ALL current bookmarks and restore from a backup file.
-                        Only use if your bookmarks are in a broken state.
+                    <div style="display: flex; gap: 8px; justify-content: flex-end; margin-top: 8px;">
+                        <button id="refreshBackupHistory" class="button secondary" type="button">🔄 Refresh</button>
+                        <button id="compareBackups" class="button secondary" type="button" style="display: none;">📊 Compare Selected</button>
+                        <button id="clearOldAutoBackups" class="button secondary" type="button">🗑️ Clear Old</button>
+                    </div>
+                </div>
+
+                <div style="margin: 12px 0;">
+                    <h4 style="font-size: 14px; margin-bottom: 8px;">Manual Backup & Restore</h4>
+                    <div style="display: flex; gap: 8px; flex-wrap: wrap;">
+                        <button id="createBackup" class="button primary" type="button">Create Backup</button>
+                        <button id="downloadBackupFile" class="button secondary" type="button">Download Backup</button>
+                        <button id="restoreFromBackup" class="button secondary" type="button">Restore from File</button>
+                    </div>
+                    <input type="file" id="restoreBackupFile" accept=".json" style="display: none;" />
+                    <div class="help-text" style="margin-top: 4px;">Create manual backup or restore from a previous backup file.</div>
+                </div>
+
+                <div style="margin: 12px 0; padding: 12px; border: 1px solid #10b981; background: #ecfdf5; border-radius: 6px;">
+                    <h4 style="font-size: 14px; margin-bottom: 8px; color: #047857;">Emergency Recovery</h4>
+                    <button id="restoreLastBackup" class="button" style="background: #28a745;" type="button">Restore Latest Auto Backup</button>
+                    <div class="help-text" style="color: #047857; margin-top: 4px;">Use this if sync operations go wrong and you need to quickly restore your bookmarks.</div>
+                </div>
+            </div>
+
+            <!-- Cleanup Section -->
+            <div class="form-group" style="border: 1px solid #e9ecef; border-radius: 8px; padding: 16px;">
+                <h3>🔍 Cleanup & Maintenance</h3>
+
+                <div id="duplicateStatus" style="padding: 12px; border: 1px solid #e9ecef; border-radius: 6px; background: #f8f9fa; margin: 12px 0;">
+                    <div id="duplicateStatusText">Click "Scan for Duplicates" to analyze your bookmarks</div>
+                </div>
+
+                <div style="display: grid; gap: 12px; grid-template-columns: 1fr 1fr; margin: 12px 0;">
+                    <div>
+                        <button id="scanDuplicates" class="button" style="background: #0066cc; width: 100%;" type="button">Scan for Duplicates</button>
+                        <div class="help-text" style="font-size: 11px; margin-top: 4px;">Find duplicate bookmarks and folders</div>
+                    </div>
+                    <div>
+                        <button id="cleanUrlParameters" class="button secondary" style="width: 100%;" type="button">Clean URL Parameters</button>
+                        <div class="help-text" style="font-size: 11px; margin-top: 4px;">Remove UTM, fbclid tracking parameters</div>
+                    </div>
+                </div>
+
+                <div style="margin: 12px 0;">
+                    <button id="cleanEmptyFolders" class="button secondary" style="width: 100%;" type="button">Clean Empty Folders</button>
+                    <div class="help-text" style="margin-top: 4px;">Remove empty bookmark folders to keep your organization clean.</div>
+                </div>
+
+                <div id="duplicatePreview" class="hidden" style="margin: 16px 0; padding: 12px; border: 1px solid #e6e9ef; border-radius: 6px; background: #f8f9fa;">
+                    <h4 style="color: #333; margin: 0 0 12px 0;">Duplicate Analysis Results</h4>
+                    <div id="duplicateResults"></div>
+                    <div style="margin-top: 12px; display: flex; gap: 8px; flex-wrap: wrap;">
+                        <button id="autoCleanupSelected" class="button" type="button" style="background: var(--accent); color: white;">Auto Cleanup All</button>
+                        <button id="manualMergeSelected" class="button secondary" type="button">Manual Merge</button>
+                        <button id="cancelScan" class="button secondary" type="button">Cancel</button>
+                    </div>
+                </div>
+
+                <div style="margin: 16px 0;">
+                    <h4 style="font-size: 14px; margin-bottom: 8px;">Scan Options</h4>
+                    <label style="display: flex; align-items: center; gap: 8px; margin-bottom: 8px;">
+                        <input type="checkbox" id="includeSubfolders" checked>
+                        <span>Include subfolders in scan</span>
+                    </label>
+                    <label style="display: flex; align-items: center; gap: 8px; margin-bottom: 8px;">
+                        <input type="checkbox" id="exactTitleMatch">
+                        <span>Require exact title match for bookmarks</span>
+                    </label>
+                    <label style="display: flex; align-items: center; gap: 8px;">
+                        <input type="checkbox" id="createBackupBeforeRemoval" checked>
+                        <span>Automatically create backup before any changes</span>
+                    </label>
+                </div>
+            </div>
+
+            <!-- Danger Zone Section -->
+            <div class="form-group" style="margin-top: 32px; padding: 20px; border: 2px solid #dc3545; border-radius: 8px; background: #fff5f5;">
+                <h3 style="color: #dc3545; margin: 0 0 12px 0;">⚠️ Danger Zone</h3>
+                <p style="color: #721c24; font-weight: 500; margin-bottom: 16px; font-size: 13px;">
+                    These operations are destructive and cannot be undone. Use with extreme caution!
+                </p>
+
+                <div style="margin-bottom: 16px;">
+                    <button id="clearAllBookmarksTools" class="button danger" type="button" style="width: 100%;">Clear ALL Bookmarks</button>
+                    <div class="help-text" style="color: #721c24; margin-top: 6px; font-weight: 500;">⚠️ WARNING: This will permanently delete ALL bookmarks in your browser! A backup is required before execution.</div>
+                </div>
+
+                <div id="clearConfirmationTools" class="confirmation-section" style="display: none; margin-top: 16px; padding: 16px; background: #fff; border: 1px solid #dc3545; border-radius: 6px;">
+                    <div id="clearSyncWarningTools" class="status info" style="display:none; margin-top:0; margin-bottom: 12px;">
+                        ⚠️ Raindrop Sync is currently enabled. After clearing, bookmarks may be restored from Raindrop automatically. Consider disabling "Enable Raindrop Sync" before proceeding.
+                    </div>
+                    <div style="margin-bottom: 16px;">
+                        <div style="font-weight: 600; color: #721c24; margin-bottom: 8px;">📥 Step 1: Download Backup</div>
+                        <button id="downloadBackupTools" class="button secondary" type="button" style="width: 100%;">Download Bookmarks Backup (JSON + HTML)</button>
+                    </div>
+                    <div style="margin-bottom: 16px;">
+                        <div style="font-weight: 600; color: #721c24; margin-bottom: 8px;">⚠️ Step 2: Confirm Deletion</div>
+                        <div style="margin-bottom: 8px; color: #721c24; font-size: 13px;">Type <strong>"CLEAR ALL"</strong> to confirm:</div>
+                        <input type="text" id="clearConfirmTextTools" placeholder="Type CLEAR ALL here" style="width: 100%; padding: 10px; margin-bottom: 8px; box-sizing: border-box; border: 2px solid #ddd; border-radius: 4px; font-size: 14px;" />
+                    </div>
+                    <div style="display: flex; gap: 8px;">
+                        <button id="executeClearTools" class="button danger" disabled style="flex: 1;">Execute Clear All</button>
+                        <button id="cancelClearTools" class="button secondary" style="flex: 1;">Cancel</button>
                     </div>
                 </div>
             </div>
@@ -1577,14 +2067,9 @@
                 <div style="margin: 12px 0; display: grid; gap: 8px; max-width: 380px;">
                     <label for="themeSelect">Choose theme</label>
                     <select id="themeSelect">
-                        <option value="default">Clean Blue (Default)</option>
-                        <option value="nordic">Nordic (Cool Gray)</option>
-                        <option value="emerald">Emerald (Modern Green)</option>
-                        <option value="sunset">Sunset (Warm Orange)</option>
-                        <option value="lavender">Lavender (Soft Purple)</option>
-                        <option value="rose">Rose (Elegant Pink)</option>
-                        <option value="slate">Slate (Professional)</option>
-                        <option value="cyber">Cyber (Electric Blue)</option>
+                        <option value="slate">Slate (Default)</option>
+                        <option value="charcoal">Charcoal</option>
+                        <option value="ocean">Ocean</option>
                     </select>
                     <div id="themePreview" class="help-text" style="display:flex; gap:6px; align-items:center; flex-wrap:wrap; margin-top:6px;"></div>
                 </div>
@@ -1594,250 +2079,187 @@
                         <input type="checkbox" id="darkModeToggle" />
                         <span>Dark Mode</span>
                     </label>
-                    
-                </div>
-            </div>
-        </div>
 
-        <div class="section tab-panel" id="tab-support" data-tab="support">
-            <h2>Support</h2>
-            <p class="support-text">Quick setup guide and support resources.</p>
-
-            <h3>Quick Setup</h3>
-            <ol style="margin: 16px 0; padding-left: 20px;">
-                <li><strong>Connect Raindrop.io:</strong> Enter your credentials and authenticate</li>
-                <li><strong>Choose Sync Mode:</strong> Pick reconciliation level and set sync interval</li>
-                <li><strong>Select Collections:</strong> Choose which collections to sync and target folder</li>
-            </ol>
-
-            <h3>Tips</h3>
-            <ul style="margin: 16px 0; padding-left: 20px;">
-                <li>Use "Test Connection" to verify authentication</li>
-                <li>Export JSON backup before making big changes</li>
-                <li>Disable sync before clearing all bookmarks</li>
-            </ul>
-
-            
-
-            <div class="support-section">
-                <h3>Need Help?</h3>
-                <div class="support-buttons">
-                    <a id="supportPanelSite" class="header-link" href="#" target="_blank" rel="noopener noreferrer">
-                        <span>🏠</span>
-                        <span>Visit Website</span>
-                    </a>
-                    <a class="header-link" href="https://github.com/daiquiri-98/open-bookmark-sync" target="_blank" rel="noopener noreferrer">
-                        <span>🔗</span>
-                        <span>GitHub Repository</span>
-                    </a>
-                    <a class="header-link" href="https://github.com/daiquiri-98/open-bookmark-sync/blob/main/PRIVACY.md" target="_blank" rel="noopener noreferrer">
-                        <span>🔒</span>
-                        <span>Privacy Policy</span>
-                    </a>
-                    <a href="mailto:dagkan@daiquiri.dev?subject=Raindrop%20Browser%20Sync%20-%20Issue%20Report&body=Hi%2C%0A%0AI%20found%20an%20issue%20with%20the%20Raindrop%20Browser%20Sync%20extension%3A%0A%0A%5BPlease%20describe%20the%20issue%20here%5D%0A%0AThanks%21" class="header-link">
-                        <span>📧</span>
-                        <span>Report Issues</span>
-                    </a>
                 </div>
             </div>
 
-            <div class="support-section">
-                <h3>⭐ Support the Project</h3>
-                <div class="support-buttons" style="display: flex; align-items: center; gap: 12px;">
-                    <iframe src="https://ghbtns.com/github-btn.html?user=daiquiri-98&repo=open-bookmark-sync&type=sponsor&size=large" frameborder="0" scrolling="0" width="150" height="30" title="GitHub Sponsor" style="height: 30px;"></iframe>
-                    <a href="https://buymeacoffee.com/daiquiri" target="_blank" rel="noopener noreferrer" style="background: #FFDD00; color: #000; padding: 6px 12px; border-radius: 6px; text-decoration: none; font-weight: 600; font-size: 14px; display: inline-flex; align-items: center; gap: 6px; height: 18px; box-sizing: border-box;">
-                        <span>☕</span>
-                        <span>Buy me a coffee</span>
-                    </a>
-                </div>
-                <div class="help-text" style="margin-top: 8px;">Support the development to help improve this extension!</div>
-            </div>
-        </div>
-
-        <div class="section tab-panel" id="tab-roadmap" data-tab="roadmap">
-            <h2>Roadmap</h2>
-            <p class="help-text">Planned improvements focusing on safety, clarity, and scalability.</p>
-
-            <h3>Upcoming Features</h3>
-            <ul style="margin: 16px 0; padding-left: 20px; line-height: 1.6;">
-                <li><strong>Safer Sync:</strong> Dry-run preview, no-delete safe mode, automatic snapshots</li>
-                <li><strong>Per-Collection Controls:</strong> Enable/disable collections, custom folder mapping</li>
-                <li><strong>Smart Scheduling:</strong> Quiet hours, next sync ETA, quick retry</li>
-                <li><strong>Cloud Backends:</strong> S3, Google Drive, OneDrive, Dropbox support</li>
-                <li><strong>Enhanced Filtering:</strong> Include/exclude by tag or domain</li>
-            </ul>
-
-            <div class="support-section">
-                <div style="display: flex; gap: 12px; flex-wrap: wrap;">
-                    <a class="header-link" href="https://github.com/daiquiri-98/open-bookmark-sync" target="_blank" rel="noopener noreferrer">
-                        <span>🔗</span>
-                        <span>GitHub Repository</span>
-                    </a>
-                    <a class="header-link" href="#" id="openRoadmapRepo" target="_blank" rel="noopener noreferrer">📄 View full ROADMAP.md</a>
-                </div>
-            </div>
-        </div>
-
-        <div class="section tab-panel" id="tab-bmc" data-tab="bmc">
-            <h2>Buy Me a Coffee ☕</h2>
-            <p class="support-text">If this extension saves you time, a coffee helps me keep improving it. Thank you for your support!</p>
-            <div class="support-section">
-                <div class="support-buttons">
-                    <a id="bmcPanelLink" class="bmc-link" href="https://buymeacoffee.com/daiquiri" target="_blank" rel="noopener noreferrer">
-                        <span>☕</span>
-                        <span>Buy me a coffee</span>
-                    </a>
-                </div>
-            </div>
-        </div>
-
-        <!-- Duplicates Panel -->
-        <div class="section tab-panel" id="tab-duplicates" data-tab="duplicates">
-            <h2>Duplicate Management</h2>
-
-            <!-- Status Section -->
             <div class="form-group">
-                <div id="duplicateStatus" style="padding: 12px; border: 1px solid #e9ecef; border-radius: 6px; background: #f8f9fa; margin-bottom: 16px;">
-                    <div id="duplicateStatusText">Click "Scan for Duplicates" to analyze your bookmarks</div>
+                <h3>🌙 Quiet Hours</h3>
+                <p class="help-text">Prevent automatic syncing during specified hours to save battery or avoid interruptions.</p>
+                <label style="display: flex; align-items: center; gap: 8px; margin: 12px 0;">
+                    <input type="checkbox" id="quietHoursEnabled" />
+                    <span>Enable Quiet Hours</span>
+                </label>
+                <div id="quietHoursSettings" style="display: none; margin-top: 12px; padding: 16px; background: #f8f9fa; border-radius: 6px;">
+                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-bottom: 12px;">
+                        <div>
+                            <label style="display: block; margin-bottom: 4px; font-weight: 500;">Start Time</label>
+                            <input type="time" id="quietHoursStart" value="23:00" style="width: 100%;">
+                        </div>
+                        <div>
+                            <label style="display: block; margin-bottom: 4px; font-weight: 500;">End Time</label>
+                            <input type="time" id="quietHoursEnd" value="07:00" style="width: 100%;">
+                        </div>
+                    </div>
+                    <p class="help-text" style="margin: 0;">Sync will pause during these hours. Manual sync is still available.</p>
                 </div>
             </div>
 
-            <!-- Main Duplicate Management -->
             <div class="form-group">
-                <h3 style="color: #0066cc;">🎯 Duplicate Management</h3>
-                <div style="display: grid; gap: 12px; grid-template-columns: 1fr 1fr; margin: 12px 0;">
-                    <div>
-                        <button id="scanDuplicates" class="button" style="background: #0066cc; width: 100%;" type="button">Scan for Duplicates</button>
-                        <div class="help-text" style="font-size: 11px; margin-top: 4px;">Find duplicate bookmarks and folders</div>
-                    </div>
-                    <div>
-                        <button id="cleanUrlParameters" class="button secondary" style="width: 100%;" type="button">Clean URL Parameters</button>
-                        <div class="help-text" style="font-size: 11px; margin-top: 4px;">Remove UTM, fbclid tracking parameters</div>
-                    </div>
-                </div>
+                <h3>⚡ Conditional Sync</h3>
+                <p class="help-text">Automatically pause sync based on system conditions.</p>
+                <label style="display: flex; align-items: center; gap: 8px; margin: 8px 0;">
+                    <input type="checkbox" id="pauseOnLowBattery" />
+                    <span>Pause on low battery (&lt;20%)</span>
+                </label>
+                <label style="display: flex; align-items: center; gap: 8px; margin: 8px 0;">
+                    <input type="checkbox" id="pauseOnMetered" />
+                    <span>Pause on metered network (mobile data)</span>
+                </label>
+            </div>
 
-                <div style="margin: 12px 0;">
-                    <button id="cleanEmptyFolders" class="button secondary" style="width: 100%;" type="button">Clean Empty Folders</button>
-                    <div class="help-text">Remove empty bookmark folders to keep your organization clean.</div>
-                </div>
-                <div id="duplicatePreview" class="hidden" style="margin: 16px 0; padding: 12px; border: 1px solid #e6e9ef; border-radius: 6px; background: #f8f9fa;">
-                    <h4 style="color: #333; margin: 0 0 12px 0;">Duplicate Analysis Results</h4>
-                    <div id="duplicateResults"></div>
-                    <div style="margin-top: 12px; display: flex; gap: 8px; flex-wrap: wrap;">
-                        <button id="autoCleanupSelected" class="button" type="button" style="background: var(--accent); color: white;">Auto Cleanup All</button>
-                        <button id="manualMergeSelected" class="button secondary" type="button">Manual Merge</button>
-                        <button id="cancelScan" class="button secondary" type="button">Cancel</button>
-                    </div>
+            <div class="form-group">
+                <h3>⚙️ Settings Management</h3>
+                <p class="help-text">Export your settings for backup or import settings from another device.</p>
+                <div style="display: flex; gap: 8px; margin-top: 12px; flex-wrap: wrap;">
+                    <button id="exportSettings" class="button secondary" type="button">📤 Export Settings</button>
+                    <button id="importSettings" class="button secondary" type="button">📥 Import Settings</button>
+                    <input type="file" id="importSettingsFile" accept=".json" style="display: none;" />
                 </div>
             </div>
 
-            <!-- Advanced Options -->
             <div class="form-group">
-                <h3>Scan Options</h3>
-                <div style="margin: 12px 0;">
-                    <label style="display: flex; align-items: center; gap: 8px; margin-bottom: 8px;">
-                        <input type="checkbox" id="includeSubfolders" checked>
-                        <span>Include subfolders in scan</span>
-                    </label>
-                    <label style="display: flex; align-items: center; gap: 8px; margin-bottom: 8px;">
-                        <input type="checkbox" id="exactTitleMatch">
-                        <span>Require exact title match for bookmarks</span>
-                    </label>
-                    <label style="display: flex; align-items: center; gap: 8px;">
-                        <input type="checkbox" id="createBackupBeforeRemoval" checked>
-                        <span>Automatically create backup before any changes</span>
-                    </label>
-                </div>
+                <h3>Reset Settings</h3>
+                <p class="help-text">Restore all settings to their recommended default values. This will not affect your bookmarks or Raindrop connection.</p>
+                <button id="resetToDefaults" class="button secondary" type="button" style="margin-top: 12px;">Reset to Defaults</button>
             </div>
         </div>
 
-        <div class="section tab-panel" id="tab-danger" data-tab="danger">
-            <h2 style="color: #dc3545;">⚠️ Danger Zone</h2>
-            <p style="color: #721c24; font-weight: 500; margin-bottom: 24px;">
-                These operations are destructive and cannot be undone. Use with extreme caution!
-            </p>
+        <div class="section tab-panel" id="tab-help" data-tab="help">
+            <h2>❓ Help & Support</h2>
+            <p class="help-text">Setup guides, tips, and support resources for using Open Bookmark Sync.</p>
 
-            <div class="danger-section">
-                <h3 style="color: #dc3545; margin: 16px 0 8px 0;">🎯 Smart Cleanup (Recommended)</h3>
-                <div style="margin: 12px 0;">
-                    <button id="scanDuplicates" class="button" style="background: #0066cc;" type="button">Scan for Duplicates</button>
-                    <div class="help-text" style="color: #721c24; margin-top: 4px;">Scan and preview duplicate bookmarks and folders before making any changes. Safe and user-friendly.</div>
-                </div>
-                <div id="duplicatePreview" class="hidden" style="margin: 16px 0; padding: 12px; border: 1px solid #e6e9ef; border-radius: 6px; background: #f8f9fa;">
-                    <h4 style="color: #333; margin: 0 0 12px 0;">Duplicate Analysis Results</h4>
-                    <div id="duplicateResults"></div>
-                    <div style="margin-top: 12px; display: flex; gap: 8px; flex-wrap: wrap;">
-                        <button id="autoCleanupSelected" class="button" type="button" style="background: var(--accent); color: white;">Auto Cleanup All</button>
-                        <button id="manualMergeSelected" class="button secondary" type="button">Manual Merge</button>
-                        <button id="cancelScan" class="button secondary" type="button">Cancel</button>
+            <!-- Quick Setup Guide -->
+            <div class="form-group" style="border: 1px solid #e9ecef; border-radius: 8px; padding: 16px; margin-bottom: 20px;">
+                <h3>🚀 Quick Setup Guide</h3>
+                <ol style="margin: 16px 0; padding-left: 20px; line-height: 1.8;">
+                    <li><strong>Connect:</strong> Go to Connect tab and choose "Managed OAuth" (recommended) or "Manual Configuration"</li>
+                    <li><strong>Authenticate:</strong> Click "Authenticate with Raindrop" - no additional setup needed for Managed OAuth</li>
+                    <li><strong>Configure Sync:</strong> In Sync Settings, choose your sync mode and interval</li>
+                    <li><strong>Select Target:</strong> Choose which browser bookmarks folder to sync to</li>
+                    <li><strong>Choose Collections:</strong> Select which Raindrop collections to sync</li>
+                    <li><strong>Enable:</strong> Check "Enable Raindrop Sync" to start automatic synchronization</li>
+                </ol>
+            </div>
+
+            <!-- Tips & Best Practices -->
+            <div class="form-group" style="border: 1px solid #e9ecef; border-radius: 8px; padding: 16px; margin-bottom: 20px;">
+                <h3>💡 Tips & Best Practices</h3>
+                <ul style="margin: 16px 0; padding-left: 20px; line-height: 1.6;">
+                    <li><strong>Authentication:</strong> Use "Managed OAuth" for easier setup - no need to create Raindrop app</li>
+                    <li><strong>Safety First:</strong> Start with "One-way: Raindrop → Browser" sync mode (default)</li>
+                    <li><strong>Collections:</strong> Use "Top-level only" collections setting initially</li>
+                    <li><strong>Testing:</strong> Test with a longer sync interval (15-30 minutes) at first</li>
+                    <li><strong>Backup:</strong> Export your bookmarks before making major changes</li>
+                    <li><strong>Verification:</strong> Use the "Test Connection" button to verify your setup</li>
+                </ul>
+            </div>
+
+            <!-- Sync Modes Explained -->
+            <div class="form-group" style="border: 1px solid #e9ecef; border-radius: 8px; padding: 16px; margin-bottom: 20px;">
+                <h3>⚙️ Sync Modes Explained</h3>
+                <div style="margin: 16px 0;">
+                    <div style="margin-bottom: 12px; padding: 10px; background: #f8f9fa; border-radius: 6px;">
+                        <strong>One-way: Raindrop → Browser (Default)</strong><br>
+                        <span style="font-size: 12px; color: #6c757d;">Safest option. Downloads Raindrop bookmarks to browser only. Perfect for first-time users.</span>
+                    </div>
+                    <div style="margin-bottom: 12px; padding: 10px; background: #f8f9fa; border-radius: 6px;">
+                        <strong>Two-way: Additions only</strong><br>
+                        <span style="font-size: 12px; color: #6c757d;">Safe bi-directional sync. Only adds new bookmarks, never deletes anything.</span>
+                    </div>
+                    <div style="margin-bottom: 12px; padding: 10px; background: #f8f9fa; border-radius: 6px;">
+                        <strong>Two-way: Mirror</strong><br>
+                        <span style="font-size: 12px; color: #6c757d;">Bi-directional sync with additions and updates. Never deletes from Raindrop for safety.</span>
+                    </div>
+                    <div style="padding: 10px; background: #f8f9fa; border-radius: 6px;">
+                        <strong>One-way: Browser → Raindrop</strong><br>
+                        <span style="font-size: 12px; color: #6c757d;">Uploads browser bookmarks to Raindrop only. Good for backing up browser bookmarks.</span>
                     </div>
                 </div>
             </div>
 
+            <!-- Support Resources -->
+            <div class="form-group" style="border: 1px solid #e9ecef; border-radius: 8px; padding: 20px;">
+                <h3 style="margin: 0 0 16px 0;">Support Resources</h3>
 
-            <div class="danger-section">
-                <h3 style="color: #dc3545; margin: 16px 0 8px 0;">Nuclear Option</h3>
-                <div style="margin: 12px 0;">
-                    <button id="clearAllBookmarks" class="button danger" type="button">Clear ALL Bookmarks</button>
-                    <div class="help-text" style="color: #721c24; margin-top: 4px;">⚠️ WARNING: This will delete ALL bookmarks in your browser! Backup required before execution.</div>
+                <!-- Quick Actions -->
+                <button id="copyDiagnostics" class="button neutral" style="width: 100%; margin-bottom: 16px; justify-content: center;">
+                    📋 Copy Diagnostics for Issue Report
+                </button>
+
+                <!-- Links Grid (2 columns) -->
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 20px;">
+                    <a id="supportPanelSite" class="header-link" href="#" target="_blank" rel="noopener noreferrer" style="padding: 10px 12px;">
+                        <img src="icons/home.svg" alt="" class="icon" style="width: 16px; height: 16px;">
+                        <span>Website</span>
+                    </a>
+                    <a class="header-link" href="https://github.com/daiquiri-98/open-bookmark-sync" target="_blank" rel="noopener noreferrer" style="padding: 10px 12px;">
+                        <img src="icons/github.svg" alt="" class="icon" style="width: 16px; height: 16px;">
+                        <span>GitHub</span>
+                    </a>
+                    <a class="header-link" href="https://github.com/daiquiri-98/open-bookmark-sync/blob/main/PRIVACY.md" target="_blank" rel="noopener noreferrer" style="padding: 10px 12px;">
+                        <img src="icons/lock.svg" alt="" class="icon" style="width: 16px; height: 16px;">
+                        <span>Privacy</span>
+                    </a>
+                    <a class="header-link" href="https://github.com/daiquiri-98/open-bookmark-sync/blob/main/ROADMAP.md" target="_blank" rel="noopener noreferrer" style="padding: 10px 12px;">
+                        <img src="icons/layers.svg" alt="" class="icon" style="width: 16px; height: 16px;">
+                        <span>Roadmap</span>
+                    </a>
                 </div>
-                <div id="clearConfirmation" class="confirmation-section" style="display: none; margin-top: 12px; padding: 16px; background: #f5f5f5; border: 1px solid #dc3545; border-radius: 4px;">
-                    <div id="clearSyncWarning" class="status info" style="display:none; margin-top:0;">
-                        Raindrop Sync is currently enabled. After clearing, bookmarks may be restored from Raindrop automatically. Consider disabling "Enable Raindrop Sync" above before proceeding.
+
+                <!-- Report Issue (Full width) -->
+                <a href="mailto:dagkan@daiquiri.dev?subject=Raindrop%20Browser%20Sync%20-%20Issue%20Report&body=Hi%2C%0A%0AI%20found%20an%20issue%20with%20the%20Raindrop%20Browser%20Sync%20extension%3A%0A%0A%5BPlease%20describe%20the%20issue%20here%5D%0A%0AThanks%21" class="header-link" style="padding: 10px 12px; margin-bottom: 20px; display: flex;">
+                    <img src="icons/mail.svg" alt="" class="icon" style="width: 16px; height: 16px;">
+                    <span>📧 Report an Issue</span>
+                </a>
+
+                <!-- Support Section -->
+                <div style="padding-top: 20px; border-top: 1px solid #e9ecef;">
+                    <h4 style="margin: 0 0 12px 0;">💝 Support the Project</h4>
+                    <div style="display: flex; align-items: center; gap: 12px; flex-wrap: wrap; margin-bottom: 8px;">
+                        <iframe src="https://ghbtns.com/github-btn.html?user=daiquiri-98&repo=open-bookmark-sync&type=sponsor&size=large" frameborder="0" scrolling="0" width="150" height="30" title="GitHub Sponsor"></iframe>
+                        <a href="https://buymeacoffee.com/daiquiri" target="_blank" rel="noopener noreferrer" style="background: #FFDD00; color: #000; padding: 8px 14px; border-radius: 6px; text-decoration: none; font-weight: 600; font-size: 13px; display: inline-flex; align-items: center; gap: 8px; transition: transform 0.2s ease;" onmouseover="this.style.transform='translateY(-2px)'" onmouseout="this.style.transform='translateY(0)'">
+                            <img src="icons/coffee.svg" alt="" style="width: 16px; height: 16px;">
+                            <span>Buy me a coffee</span>
+                        </a>
                     </div>
-                    <div style="margin-bottom: 16px;">
-                        <div style="font-weight: bold; color: #721c24; margin-bottom: 8px;">📥 Step 1: Download Backup</div>
-                        <button id="downloadBackup" class="button secondary" type="button">Download Bookmarks Backup</button>
-                    </div>
-                    <div style="margin-bottom: 16px;">
-                        <div style="font-weight: bold; color: #721c24; margin-bottom: 8px;">⚠️ Step 2: Confirm Deletion</div>
-                        <div style="margin-bottom: 6px; color: #721c24;">Type "CLEAR ALL" to confirm:</div>
-                        <input type="text" id="clearConfirmText" placeholder="Type CLEAR ALL here" style="width: 100%; padding: 8px; margin-bottom: 8px; box-sizing: border-box;" />
-                    </div>
+                    <p class="help-text" style="margin: 0; font-size: 12px;">Your support helps keep this extension free and improving!</p>
+                </div>
+            </div>
+
+            <!-- Sync History Timeline -->
+            <div class="form-group" style="border: 1px solid #e9ecef; border-radius: 8px; padding: 16px; margin-top: 16px;">
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
+                    <h3 style="margin: 0;">📅 Sync History Timeline</h3>
+                    <button id="exportSyncHistory" class="button" style="height: 28px; padding: 0 10px; font-size: 11px;">📥 Export</button>
+                </div>
+                <div id="syncHistoryTimeline" style="max-height: 250px; overflow-y: auto; font-size: 12px; background: #f8f9fa; padding: 12px; border-radius: 4px;">
+                    <div style="color: #999;">No sync history yet...</div>
+                </div>
+            </div>
+
+            <!-- Activity Log -->
+            <div class="form-group" style="border: 1px solid #e9ecef; border-radius: 8px; padding: 16px; margin-top: 16px;">
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
+                    <h3 style="margin: 0;">Activity Log</h3>
                     <div style="display: flex; gap: 8px;">
-                        <button id="executeClear" class="button danger" disabled>Execute Clear</button>
-                        <button id="cancelClear" class="button secondary">Cancel</button>
+                        <input type="text" id="activityLogSearch" placeholder="Search..." style="width: 150px; height: 28px; padding: 0 8px; font-size: 11px; border: 1px solid #e9ecef; border-radius: 4px;">
+                        <button id="clearActivityLog" class="button" style="height: 28px; padding: 0 10px; font-size: 11px;">Clear</button>
                     </div>
                 </div>
-            </div>
-        </div>
-
-        <!-- Backup & Restore Panel -->
-        <div class="section tab-panel" id="tab-backup" data-tab="backup">
-            <h2>Backup & Restore</h2>
-            <p class="help-text">Emergency backup and restore system for bookmark management.</p>
-
-            <!-- Auto Backup History -->
-            <div class="form-group">
-                <h3>Auto Backup History</h3>
-                <div id="autoBackupsList" style="margin: 12px 0; padding: 12px; border: 1px solid #e9ecef; border-radius: 6px; background: #f8f9fa; min-height: 60px;">
-                    <div class="help-text">Your automatic backups are stored locally in the browser.</div>
+                <div id="activityLogContainer" style="max-height: 200px; overflow-y: auto; font-size: 12px; font-family: monospace; background: #f8f9fa; padding: 8px; border-radius: 4px;">
+                    <div style="color: #999;">No activity yet...</div>
                 </div>
-                <div style="margin: 12px 0; display: flex; gap: 8px; justify-content: flex-end;">
-                    <button id="refreshAutoBackups" class="button secondary" type="button">Refresh</button>
-                    <button id="clearOldAutoBackups" class="button secondary" type="button">Clear Old</button>
-                </div>
-            </div>
-
-            <!-- Manual Backup & Restore -->
-            <div class="form-group">
-                <h3>Manual Backup & Restore</h3>
-                <div style="margin: 12px 0; display: flex; gap: 8px; justify-content: flex-end; flex-wrap: wrap;">
-                    <button id="createBackup" class="button primary" type="button">Create Backup</button>
-                    <button id="downloadBackupFile" class="button secondary" type="button">Download Backup</button>
-                    <button id="restoreFromBackup" class="button secondary" type="button">Restore from File</button>
-                </div>
-                <input type="file" id="restoreBackupFile" accept=".json" style="display: none;" />
-                <div class="help-text">Create manual backup or restore from a previous backup file.</div>
-            </div>
-
-            <!-- Emergency Actions -->
-            <div class="form-group">
-                <h3 style="color: #dc3545;">Emergency Recovery</h3>
-                <div style="margin: 12px 0; display: flex; gap: 8px; justify-content: flex-end;">
-                    <button id="restoreLastBackup" class="button" style="background: #28a745;" type="button">Restore Latest Auto Backup</button>
-                </div>
-                <div class="help-text" style="color: #721c24;">Use this if sync operations go wrong and you need to quickly restore your bookmarks.</div>
             </div>
         </div>
 
@@ -1861,6 +2283,43 @@
 
             </div> <!-- end main-content -->
         </div> <!-- end main -->
+    </div>
+
+    <!-- Welcome Screen Modal -->
+    <div id="welcomeOverlay" class="welcome-overlay">
+        <div class="welcome-modal">
+            <div class="welcome-header">
+                <h1>🎉 Welcome to Open Bookmark Sync!</h1>
+                <p>Let's get you set up in just 3 easy steps</p>
+            </div>
+            <div class="welcome-content">
+                <div class="welcome-step">
+                    <div class="step-number">1</div>
+                    <div class="step-content">
+                        <h3>Connect to Raindrop.io</h3>
+                        <p>Go to the <strong>Connect</strong> tab and click "Authenticate with Raindrop". Using Managed OAuth (recommended) requires no additional setup.</p>
+                    </div>
+                </div>
+                <div class="welcome-step">
+                    <div class="step-number">2</div>
+                    <div class="step-content">
+                        <h3>Choose What to Sync</h3>
+                        <p>In the <strong>Sync Settings</strong> tab, select your sync mode and choose which collections to import. We recommend starting with "One-way: Raindrop → Browser" mode.</p>
+                    </div>
+                </div>
+                <div class="welcome-step">
+                    <div class="step-number">3</div>
+                    <div class="step-content">
+                        <h3>You're All Set!</h3>
+                        <p>Enable automatic sync and your bookmarks will stay in sync. Check the <strong>Guide</strong> tab for tips and best practices.</p>
+                    </div>
+                </div>
+            </div>
+            <div class="welcome-actions">
+                <button id="welcomeSkip" class="welcome-btn secondary">Skip Tour</button>
+                <button id="welcomeStart" class="welcome-btn primary">Let's Get Started!</button>
+            </div>
+        </div>
     </div>
 
     <script src="oauth.js"></script>

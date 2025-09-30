@@ -1,18 +1,69 @@
 // Background service worker for Raindrop.io bookmarks sync
 
+// Debug logging system
+const DEBUG_MODE = false; // Set to true for development
+const Logger = {
+  debug: (...args) => DEBUG_MODE && console.log('[DEBUG]', ...args),
+  info: (...args) => console.log('[INFO]', ...args),
+  warn: (...args) => console.warn('[WARN]', ...args),
+  error: (...args) => console.error('[ERROR]', ...args)
+};
+
+// Constants
+const CONSTANTS = {
+  MAX_AUTO_BACKUPS: 10,
+  BATCH_CHUNK_SIZE: 50,
+  MAX_RETRIES: 5,
+  MIN_RETRY_DELAY: 1000,
+  BOOKMARKS_PER_PAGE: 100,
+  DEFAULT_SYNC_INTERVAL: 5
+};
+
+// Smart Defaults - Applied on first install for better UX
+const SMART_DEFAULTS = {
+  // Sync Settings
+  syncEnabled: true,
+  syncIntervalMinutes: 15, // Balanced: not too frequent, not too slow
+  twoWayMode: 'additions_only', // Safest: won't delete anything
+
+  // Target Settings
+  targetFolderId: '1', // Bookmarks Bar (most common)
+  useSubfolder: false, // Direct to bar (simpler)
+
+  // OAuth Settings
+  managedOAuth: true, // Easiest setup (no client ID/secret needed)
+  managedOAuthBaseUrl: 'https://rdoauth.daiquiri.dev',
+
+  // Collection Settings
+  collectionMode: 'parentOnly', // Safer: no deep nesting
+  collectionsSort: 'alpha_asc', // Predictable ordering
+  bookmarksSort: 'created_desc', // Recent first
+
+  // Rate Limiting
+  rateLimitRpm: 60, // Conservative
+
+  // Features
+  autoBackupEnabled: true, // Safety first!
+  createBackupBeforeSync: true, // Extra safety
+
+  // UI Preferences
+  hasSeenWelcome: false, // Show welcome on first run
+  interfaceMode: 'simple' // Start with simple mode
+};
+
 class RaindropSync {
   constructor() {
     this.SYNC_ALARM_NAME = 'raindropSync';
     this.API_BASE = 'https://api.raindrop.io/rest/v1';
-    this.DEFAULT_SYNC_MINUTES = 5;
-    this.DEFAULT_TARGET_FOLDER_ID = '1'; // Bookmarks Bar by default
+    this.DEFAULT_SYNC_MINUTES = 15; // Updated to match SMART_DEFAULTS
+    this.DEFAULT_TARGET_FOLDER_ID = '1';
     this.SYNC_ROOT_FOLDER_NAME = 'Raindrop.io';
-    this.DEFAULT_USE_SUBFOLDER = false; // per user: sync directly to bar
-    this.DEFAULT_TWO_WAY_MODE = 'additions_only'; // additions_only | mirror | off
-    this.RATE_LIMIT_RPM_DEFAULT = 60; // conservative default; backoff handles 429s
+    this.DEFAULT_USE_SUBFOLDER = false;
+    this.DEFAULT_TWO_WAY_MODE = 'additions_only';
+    this.RATE_LIMIT_RPM_DEFAULT = 60;
     this._lastRequestAt = 0;
-    this._syncInProgress = false; // Add sync mutex
-    this.MANAGED_OAUTH_ENABLED = true; // Add missing constant
+    this._syncInProgress = false;
+    this.MANAGED_OAUTH_ENABLED = true;
   }
 
   async initialize() {
@@ -45,14 +96,14 @@ class RaindropSync {
   async syncBookmarks() {
     // Prevent concurrent syncs
     if (this._syncInProgress) {
-      console.log('Sync already in progress, skipping...');
+      Logger.debug('Sync already in progress, skipping...');
       return;
     }
 
     this._syncInProgress = true;
 
     try {
-      console.log('Starting Raindrop sync...');
+      Logger.info('Starting Raindrop sync...');
 
       // Check if sync is enabled
       const { syncEnabled = true } = await chrome.storage.sync.get(['syncEnabled']);
@@ -132,10 +183,10 @@ class RaindropSync {
       // Update last sync time
       await chrome.storage.sync.set({ lastSyncTime: Date.now() });
 
-      console.log('Raindrop sync completed successfully');
+      Logger.info('Raindrop sync completed successfully');
 
     } catch (error) {
-      console.error('Sync failed:', error);
+      Logger.error('Sync failed:', error);
 
       // If authentication error, clear tokens
       if (error.message && error.message.includes('401')) {
@@ -465,13 +516,6 @@ class RaindropSync {
 
   async syncCollectionsAtRoot(rootFolderId, collections, { collectionsSort = 'alpha_asc', bookmarksSort = 'created_desc', syncMode = this.DEFAULT_TWO_WAY_MODE } = {}) {
     try {
-      // Build a map of existing folders by title at root
-      const existing = await chrome.bookmarks.getChildren(rootFolderId);
-      const foldersByTitle = new Map();
-      for (const node of existing) {
-        if (!node.url) foldersByTitle.set(node.title, node);
-      }
-
       // Load mapping and clean up stale entries
       const mapObj = await chrome.storage.local.get(['rdMapRaindropToBookmark', 'rdMapCollectionToFolder']);
       const rdMap = mapObj.rdMapRaindropToBookmark || {};
@@ -535,6 +579,25 @@ class RaindropSync {
           }
         }
 
+        // CRITICAL FIX: Check for existing folder by title in the current parent
+        if (!folder) {
+          try {
+            const siblingsInParent = await chrome.bookmarks.getChildren(parentFolderId);
+            const existingByTitle = siblingsInParent.find(node =>
+              !node.url && node.title === collection.title
+            );
+            if (existingByTitle) {
+              folder = existingByTitle;
+              console.log(`Found existing folder by title: ${collection.title} (${folder.id}) in parent ${parentFolderId}`);
+              // Update mappings to prevent future duplicates
+              folderMap[String(collection._id)] = folder.id;
+              createdFolders.set(collection._id, folder.id);
+            }
+          } catch (e) {
+            console.warn(`Error checking for existing folder by title: ${e.message}`);
+          }
+        }
+
         // Create new folder if not found (hierarchical parent support)
         if (!folder) {
           if (syncMode === 'upload_only') {
@@ -546,7 +609,6 @@ class RaindropSync {
             parentId: parentFolderId,
             title: collection.title
           });
-          foldersByTitle.set(collection.title, folder);
           console.log(`Created folder: ${folder.title} (${folder.id})`);
         }
 
@@ -681,47 +743,58 @@ class RaindropSync {
         }
       }
 
-      // Batch create all new bookmarks for much faster performance
+      // Batch create all new bookmarks with chunking for better performance
       if (bookmarksToCreate.length > 0) {
-        console.log(`Creating ${bookmarksToCreate.length} bookmarks in batch for faster sync`);
-        const createPromises = bookmarksToCreate.map(item =>
-          chrome.bookmarks.create({
-            parentId: folderId,
-            title: item.title,
-            url: item.url
-          })
-        );
+        Logger.debug(`Creating ${bookmarksToCreate.length} bookmarks in batches for faster sync`);
 
-        try {
-          const createdBookmarks = await Promise.all(createPromises);
+        // Process in chunks to avoid overwhelming the API
+        const CHUNK_SIZE = CONSTANTS.BATCH_CHUNK_SIZE;
+        const allCreatedBookmarks = [];
 
-          // Update mappings and local indexes for created bookmarks
-          createdBookmarks.forEach((bookmark, index) => {
-            const item = bookmarksToCreate[index];
-            rdMap[String(item.raindrop._id)] = String(bookmark.id);
-            byUrl.set(item.url, bookmark);
-            byId.set(bookmark.id, bookmark);
-          });
+        for (let i = 0; i < bookmarksToCreate.length; i += CHUNK_SIZE) {
+          const chunk = bookmarksToCreate.slice(i, i + CHUNK_SIZE);
+          const createPromises = chunk.map(item =>
+            chrome.bookmarks.create({
+              parentId: folderId,
+              title: item.title,
+              url: item.url
+            })
+          );
 
-          console.log(`Successfully created ${createdBookmarks.length} bookmarks in batch`);
-        } catch (error) {
-          console.error('Batch bookmark creation failed:', error);
-          // Fall back to individual creation if batch fails
-          for (const item of bookmarksToCreate) {
-            try {
-              const bookmark = await chrome.bookmarks.create({
-                parentId: folderId,
-                title: item.title,
-                url: item.url
-              });
+          try {
+            const createdBookmarks = await Promise.all(createPromises);
+            allCreatedBookmarks.push(...createdBookmarks);
+
+            // Update mappings and local indexes for created bookmarks
+            createdBookmarks.forEach((bookmark, index) => {
+              const item = chunk[index];
               rdMap[String(item.raindrop._id)] = String(bookmark.id);
               byUrl.set(item.url, bookmark);
               byId.set(bookmark.id, bookmark);
-            } catch (individualError) {
-              console.warn('Failed to create individual bookmark:', item.url, individualError);
+            });
+
+            Logger.debug(`Created chunk ${Math.floor(i/CHUNK_SIZE) + 1}/${Math.ceil(bookmarksToCreate.length/CHUNK_SIZE)}: ${createdBookmarks.length} bookmarks`);
+          } catch (error) {
+            Logger.error('Batch bookmark creation failed for chunk:', error);
+            // Fall back to individual creation for this chunk
+            for (const item of chunk) {
+              try {
+                const bookmark = await chrome.bookmarks.create({
+                  parentId: folderId,
+                  title: item.title,
+                  url: item.url
+                });
+                rdMap[String(item.raindrop._id)] = String(bookmark.id);
+                byUrl.set(item.url, bookmark);
+                byId.set(bookmark.id, bookmark);
+              } catch (individualError) {
+                Logger.warn('Failed to create individual bookmark:', item.url, individualError);
+              }
             }
           }
         }
+
+        Logger.info(`Successfully created ${allCreatedBookmarks.length} bookmarks total`);
       }
 
       // Batch update titles for better performance
@@ -1224,7 +1297,22 @@ chrome.runtime.onStartup.addListener(() => {
   syncManager.initialize();
 });
 
-chrome.runtime.onInstalled.addListener(() => {
+chrome.runtime.onInstalled.addListener(async (details) => {
+  // Apply smart defaults on fresh install
+  if (details.reason === 'install') {
+    Logger.info('First install detected - applying smart defaults');
+
+    // Check if settings already exist (shouldn't on fresh install)
+    const existing = await chrome.storage.sync.get(Object.keys(SMART_DEFAULTS));
+    const needsDefaults = Object.keys(existing).length === 0;
+
+    if (needsDefaults) {
+      await chrome.storage.sync.set(SMART_DEFAULTS);
+      Logger.info('Smart defaults applied successfully');
+    }
+  }
+
+  // Initialize sync manager
   syncManager.initialize();
 });
 

@@ -18,6 +18,7 @@ class OptionsManager {
     const initialTab = document.querySelector('.tab-btn.active')?.dataset.tab || 'api';
     this.showTab(initialTab);
     this.startTokenHealthCheck();
+    this.initSidebarCollapse(); // Initialize collapsible sidebar sections
 
     // Auto-check Worker status on load
     setTimeout(() => this.autoCheckWorker(), 1000);
@@ -37,6 +38,9 @@ class OptionsManager {
     this.updateNotificationOffset();
     // Keep in sync on resize
     window.addEventListener('resize', () => this.updateNotificationOffset());
+
+    // Check for first-run welcome screen
+    this.checkFirstRun();
   }
 
   initializeElements() {
@@ -115,6 +119,13 @@ class OptionsManager {
       clearCollections: document.getElementById('clearCollections'),
       refreshCollections: document.getElementById('refreshCollections'),
       clearAllBookmarks: document.getElementById('clearAllBookmarks'),
+      clearAllBookmarksTools: document.getElementById('clearAllBookmarksTools'),
+      clearConfirmationTools: document.getElementById('clearConfirmationTools'),
+      clearSyncWarningTools: document.getElementById('clearSyncWarningTools'),
+      downloadBackupTools: document.getElementById('downloadBackupTools'),
+      clearConfirmTextTools: document.getElementById('clearConfirmTextTools'),
+      executeClearTools: document.getElementById('executeClearTools'),
+      cancelClearTools: document.getElementById('cancelClearTools'),
       lastBackupTime: document.getElementById('lastBackupTime'),
       createBackup: document.getElementById('createBackup'),
       restoreFromFile: document.getElementById('restoreFromFile'),
@@ -179,6 +190,7 @@ class OptionsManager {
     this.elements.applyTheme && this.elements.applyTheme.addEventListener('click', () => this.applyTheme());
     this.elements.themeSelect && this.elements.themeSelect.addEventListener('change', () => this.updateThemePreview());
     this.elements.darkModeToggle && this.elements.darkModeToggle.addEventListener('change', () => this.toggleColorMode());
+    E.resetToDefaults && E.resetToDefaults.addEventListener('click', () => this.resetToDefaults());
     E.closePrivacyNotice && E.closePrivacyNotice.addEventListener('click', () => this.closePrivacyNotice());
     E.redirectReset && E.redirectReset.addEventListener('click', () => this.resetRedirectUri());
     E.redirectUri && E.redirectUri.addEventListener('input', () => this.validateRedirectUri());
@@ -226,6 +238,7 @@ class OptionsManager {
     E.clearCollections && E.clearCollections.addEventListener('click', () => this.setAllCollections(false));
     E.refreshCollections && E.refreshCollections.addEventListener('click', () => this.refreshAll());
     E.clearAllBookmarks && E.clearAllBookmarks.addEventListener('click', () => this.clearAllBookmarks());
+    E.clearAllBookmarksTools && E.clearAllBookmarksTools.addEventListener('click', () => this.clearAllBookmarksTools());
 
     // Backup and restore functions
     E.createBackup && E.createBackup.addEventListener('click', () => this.createBackupNow());
@@ -264,6 +277,20 @@ class OptionsManager {
     downloadBackup && downloadBackup.addEventListener('click', (e) => {
       e.preventDefault();
       this.downloadBackup();
+    });
+
+    // Tools Danger Zone event listeners
+    const clearConfirmTextTools = document.getElementById('clearConfirmTextTools');
+    const executeClearTools = document.getElementById('executeClearTools');
+    const cancelClearTools = document.getElementById('cancelClearTools');
+    const downloadBackupTools = document.getElementById('downloadBackupTools');
+
+    clearConfirmTextTools && clearConfirmTextTools.addEventListener('input', () => this.onClearConfirmTextChangeTools());
+    executeClearTools && executeClearTools.addEventListener('click', () => this.executeClearTools());
+    cancelClearTools && cancelClearTools.addEventListener('click', () => this.cancelClearTools());
+    downloadBackupTools && downloadBackupTools.addEventListener('click', (e) => {
+      e.preventDefault();
+      this.downloadBackupTools();
     });
 
     // Tabs
@@ -683,20 +710,35 @@ class OptionsManager {
   async quickBackup() {
     try {
       const btn = this.elements.quickBackupBtn;
+      const btnAlt = this.elements.quickBackupBtnAlt;
+
       if (btn) {
         btn.disabled = true;
         btn.textContent = 'Creating...';
       }
+      if (btnAlt) {
+        btnAlt.disabled = true;
+        btnAlt.textContent = 'Creating...';
+      }
 
+      // Download backup files (JSON + HTML)
+      await this.backupBookmarks();
+
+      // Also create internal auto-backup
       await this.createAutoBackup();
-      this.showMessage('Quick backup created successfully', 'success');
     } catch (error) {
       this.showMessage('Failed to create quick backup: ' + error.message, 'error');
     } finally {
       const btn = this.elements.quickBackupBtn;
+      const btnAlt = this.elements.quickBackupBtnAlt;
+
       if (btn) {
         btn.disabled = false;
         btn.textContent = '📥 Backup Now';
+      }
+      if (btnAlt) {
+        btnAlt.disabled = false;
+        btnAlt.textContent = 'Backup';
       }
     }
   }
@@ -755,7 +797,19 @@ class OptionsManager {
     try {
       const targetId = this.elements.targetFolderSelect?.value;
       await chrome.storage.sync.set({ targetFolderId: targetId });
-      this.showMessage('Target folder saved', 'success');
+
+      // Auto-enable sync if both target and collections are configured
+      const { selectedCollectionIds, syncEnabled } = await chrome.storage.sync.get(['selectedCollectionIds', 'syncEnabled']);
+      if (!syncEnabled && selectedCollectionIds && selectedCollectionIds.length > 0) {
+        await chrome.storage.sync.set({ syncEnabled: true });
+        const syncCheckbox = document.getElementById('syncEnabled');
+        if (syncCheckbox) syncCheckbox.checked = true;
+        this.showMessage('Target folder saved and sync enabled!', 'success');
+      } else if (!syncEnabled) {
+        this.showMessage('Target folder saved. Select collections to enable sync.', 'success');
+      } else {
+        this.showMessage('Target folder saved', 'success');
+      }
     } catch (_) {
       this.showMessage('Failed to save target folder', 'error');
     }
@@ -847,25 +901,18 @@ class OptionsManager {
       const container = document.getElementById('bmcButtonContainer');
       if (!container) return;
 
-      // Clear any existing content and ensure container is visible
-      container.innerHTML = '';
+      // Create simple link button (no external scripts - Chrome Web Store compliant)
+      container.innerHTML = `
+        <a href="https://buymeacoffee.com/daiquiri"
+           target="_blank"
+           rel="noopener noreferrer"
+           style="background: #FFDD00; color: #000; padding: 8px 16px; border-radius: 6px;
+                  text-decoration: none; font-weight: 600; font-size: 14px;
+                  display: inline-flex; align-items: center; gap: 6px; box-sizing: border-box;">
+          ☕ Buy me a coffee
+        </a>
+      `;
       container.style.display = 'block';
-
-      // Create BMC button script with your exact specifications
-      const script = document.createElement('script');
-      script.type = 'text/javascript';
-      script.src = 'https://cdnjs.buymeacoffee.com/1.0.0/button.prod.min.js';
-      script.setAttribute('data-name', 'bmc-button');
-      script.setAttribute('data-slug', 'daiquiri');
-      script.setAttribute('data-color', '#FFDD00');
-      script.setAttribute('data-emoji', '');
-      script.setAttribute('data-font', 'Poppins');
-      script.setAttribute('data-text', 'Buy me a coffee');
-      script.setAttribute('data-outline-color', '#000000');
-      script.setAttribute('data-font-color', '#000000');
-      script.setAttribute('data-coffee-color', '#ffffff');
-
-      container.appendChild(script);
     } catch (e) {
       console.error('Failed to load BMC button:', e);
     }
@@ -981,6 +1028,15 @@ class OptionsManager {
         });
       }
       await chrome.storage.sync.set({ selectedCollectionIds: Array.from(ids) });
+
+      // Auto-enable sync if both target and collections are configured
+      const { targetFolderId, syncEnabled } = await chrome.storage.sync.get(['targetFolderId', 'syncEnabled']);
+      if (!syncEnabled && targetFolderId && ids.size > 0) {
+        await chrome.storage.sync.set({ syncEnabled: true });
+        const syncCheckbox = document.getElementById('syncEnabled');
+        if (syncCheckbox) syncCheckbox.checked = true;
+        this.showMessage('Collections saved and sync enabled!', 'success');
+      }
     } catch (_) {}
   }
 
@@ -989,13 +1045,13 @@ class OptionsManager {
       const list = this.elements.collectionsList;
       const { accessToken } = await chrome.storage.sync.get(['accessToken']);
       if (!accessToken) {
-        if (list) list.innerHTML = '<div class="help-text">Authenticate to load collections</div>';
+        if (list) this.setHelpText(list, 'Authenticate to load collections');
         return;
       }
 
       // Show loading state without clearing content immediately
       if (list && list.children.length === 0) {
-        list.innerHTML = '<div class="help-text">Loading collections...</div>';
+        this.setHelpText(list, 'Loading collections...');
       }
 
       // Fetch root collections
@@ -1041,7 +1097,7 @@ class OptionsManager {
       }
     } catch (_) {
       const list = this.elements.collectionsList;
-      if (list) list.innerHTML = '<div class="help-text">Failed to load collections</div>';
+      if (list) this.setHelpText(list, 'Failed to load collections');
     }
   }
 
@@ -1371,6 +1427,106 @@ class OptionsManager {
     }
   }
 
+  // Tools Danger Zone functions (duplicate functionality for Tools tab)
+  async clearAllBookmarksTools() {
+    const confirmationDiv = document.getElementById('clearConfirmationTools');
+    const confirmText = document.getElementById('clearConfirmTextTools');
+    const executeBtn = document.getElementById('executeClearTools');
+    const downloadBtn = document.getElementById('downloadBackupTools');
+    const syncWarn = document.getElementById('clearSyncWarningTools');
+
+    if (confirmationDiv) {
+      confirmationDiv.style.display = 'block';
+      confirmText.value = '';
+      executeBtn.disabled = true;
+
+      if (downloadBtn) {
+        downloadBtn.textContent = 'Download Bookmarks Backup (JSON + HTML)';
+        downloadBtn.style.backgroundColor = '';
+        downloadBtn.style.color = '';
+        downloadBtn.style.pointerEvents = '';
+        downloadBtn.className = 'button secondary';
+      }
+
+      try {
+        const { syncEnabled } = await chrome.storage.sync.get(['syncEnabled']);
+        if (syncWarn) syncWarn.style.display = syncEnabled ? 'block' : 'none';
+      } catch (_) { if (syncWarn) syncWarn.style.display = 'none'; }
+    }
+  }
+
+  cancelClearTools() {
+    const confirmationDiv = document.getElementById('clearConfirmationTools');
+    if (confirmationDiv) {
+      confirmationDiv.style.display = 'none';
+    }
+  }
+
+  onClearConfirmTextChangeTools() {
+    const confirmText = document.getElementById('clearConfirmTextTools');
+    const executeBtn = document.getElementById('executeClearTools');
+
+    if (confirmText && executeBtn) {
+      const value = (confirmText.value || '').trim().toUpperCase();
+      executeBtn.disabled = value !== 'CLEAR ALL';
+    }
+  }
+
+  async executeClearTools() {
+    try {
+      const executeBtn = document.getElementById('executeClearTools');
+      if (executeBtn) {
+        executeBtn.disabled = true;
+        executeBtn.textContent = 'Deleting...';
+      }
+
+      console.log('Options: Sending clearAllBookmarks message...');
+      const response = await chrome.runtime.sendMessage({ action: 'clearAllBookmarks' });
+      console.log('Options: Received response:', response);
+
+      if (response?.success) {
+        this.showMessage(`Successfully deleted ${response.bookmarksDeleted} bookmarks`, 'success');
+        this.cancelClearTools();
+      } else {
+        this.showMessage(`Clear failed: ${response?.error || 'Unknown error'}`, 'error');
+      }
+    } catch (error) {
+      this.showMessage(`Clear failed: ${error.message}`, 'error');
+    } finally {
+      const executeBtn = document.getElementById('executeClearTools');
+      if (executeBtn) {
+        executeBtn.disabled = false;
+        executeBtn.textContent = 'Execute Clear All';
+      }
+    }
+  }
+
+  async downloadBackupTools() {
+    try {
+      const downloadBtn = document.getElementById('downloadBackupTools');
+      if (downloadBtn) {
+        downloadBtn.disabled = true;
+        downloadBtn.textContent = 'Downloading...';
+      }
+
+      await this.backupBookmarks();
+
+      if (downloadBtn) {
+        downloadBtn.textContent = '✓ Downloaded';
+        downloadBtn.style.backgroundColor = '#28a745';
+        downloadBtn.style.color = 'white';
+        downloadBtn.style.pointerEvents = 'none';
+      }
+    } catch (error) {
+      this.showMessage(`Backup failed: ${error.message}`, 'error');
+      const downloadBtn = document.getElementById('downloadBackupTools');
+      if (downloadBtn) {
+        downloadBtn.textContent = 'Download Bookmarks Backup (JSON + HTML)';
+        downloadBtn.disabled = false;
+      }
+    }
+  }
+
   async downloadBackup() {
     try {
       const downloadBtn = document.getElementById('downloadBackup');
@@ -1401,37 +1557,112 @@ class OptionsManager {
     try {
       // Get all bookmarks
       const bookmarks = await chrome.bookmarks.getTree();
+      const timestamp = new Date().toISOString().slice(0, 19).replace(/:/g, '-');
 
-      // Create backup data
+      // Create JSON backup
       const backupData = {
         timestamp: new Date().toISOString(),
         bookmarks: bookmarks,
         extensionVersion: chrome.runtime.getManifest().version
       };
 
-      // Convert to JSON
       const jsonString = JSON.stringify(backupData, null, 2);
-      const blob = new Blob([jsonString], { type: 'application/json' });
+      const jsonBlob = new Blob([jsonString], { type: 'application/json' });
+      const jsonUrl = URL.createObjectURL(jsonBlob);
+      const jsonFilename = `bookmarks-backup-${timestamp}.json`;
 
-      // Create download
-      const url = URL.createObjectURL(blob);
-      const timestamp = new Date().toISOString().slice(0, 19).replace(/:/g, '-');
-      const filename = `bookmarks-backup-${timestamp}.json`;
+      // Create HTML backup (Netscape Bookmark Format)
+      const htmlContent = this.generateNetscapeBookmarkHTML(bookmarks);
+      const htmlBlob = new Blob([htmlContent], { type: 'text/html' });
+      const htmlUrl = URL.createObjectURL(htmlBlob);
+      const htmlFilename = `bookmarks-backup-${timestamp}.html`;
 
-      // Trigger download
-      const a = document.createElement('a');
-      a.href = url;
-      a.download = filename;
-      a.style.display = 'none';
-      document.body.appendChild(a);
-      a.click();
-      document.body.removeChild(a);
-      URL.revokeObjectURL(url);
+      // Download JSON
+      const jsonLink = document.createElement('a');
+      jsonLink.href = jsonUrl;
+      jsonLink.download = jsonFilename;
+      jsonLink.style.display = 'none';
+      document.body.appendChild(jsonLink);
+      jsonLink.click();
+      document.body.removeChild(jsonLink);
+      URL.revokeObjectURL(jsonUrl);
 
-      this.showMessage(`Backup saved as ${filename}`, 'success');
+      // Download HTML (with small delay)
+      setTimeout(() => {
+        const htmlLink = document.createElement('a');
+        htmlLink.href = htmlUrl;
+        htmlLink.download = htmlFilename;
+        htmlLink.style.display = 'none';
+        document.body.appendChild(htmlLink);
+        htmlLink.click();
+        document.body.removeChild(htmlLink);
+        URL.revokeObjectURL(htmlUrl);
+      }, 500);
+
+      this.showMessage(`Backup saved (JSON + HTML)`, 'success');
     } catch (error) {
       throw new Error(`Failed to create backup: ${error.message}`);
     }
+  }
+
+  generateNetscapeBookmarkHTML(bookmarkTree) {
+    const timestamp = Math.floor(Date.now() / 1000);
+    let html = `<!DOCTYPE NETSCAPE-Bookmark-file-1>
+<!-- This is an automatically generated file.
+     It will be read and overwritten.
+     DO NOT EDIT! -->
+<META HTTP-EQUIV="Content-Type" CONTENT="text/html; charset=UTF-8">
+<TITLE>Bookmarks</TITLE>
+<H1>Bookmarks</H1>
+<DL><p>
+`;
+
+    const processNode = (node, indent = '    ') => {
+      let output = '';
+
+      if (node.url) {
+        // It's a bookmark
+        const addDate = node.dateAdded ? Math.floor(node.dateAdded / 1000) : timestamp;
+        const title = this.escapeHTML(node.title || '');
+        const url = this.escapeHTML(node.url);
+        output += `${indent}<DT><A HREF="${url}" ADD_DATE="${addDate}">${title}</A>\n`;
+      } else if (node.children) {
+        // It's a folder
+        if (node.title) {
+          const addDate = node.dateAdded ? Math.floor(node.dateAdded / 1000) : timestamp;
+          const modDate = node.dateGroupModified ? Math.floor(node.dateGroupModified / 1000) : timestamp;
+          const title = this.escapeHTML(node.title);
+          output += `${indent}<DT><H3 ADD_DATE="${addDate}" LAST_MODIFIED="${modDate}">${title}</H3>\n`;
+          output += `${indent}<DL><p>\n`;
+
+          for (const child of node.children) {
+            output += processNode(child, indent + '    ');
+          }
+
+          output += `${indent}</DL><p>\n`;
+        } else {
+          // Root node without title
+          for (const child of node.children) {
+            output += processNode(child, indent);
+          }
+        }
+      }
+
+      return output;
+    };
+
+    for (const rootNode of bookmarkTree) {
+      html += processNode(rootNode);
+    }
+
+    html += `</DL><p>\n`;
+    return html;
+  }
+
+  escapeHTML(text) {
+    const div = document.createElement('div');
+    div.textContent = text;
+    return div.innerHTML;
   }
 
   onSyncEnabledToggle() {
@@ -1497,11 +1728,22 @@ class OptionsManager {
       const btn = this.elements.createBackup;
       if (btn) {
         btn.disabled = true;
-        btn.textContent = 'Creating...';
+        btn.textContent = 'Creating backup...';
       }
 
+      // Create internal auto-backup first
       await this.createAutoBackup();
-      this.showMessage('Manual backup created successfully', 'success');
+
+      // Update button text
+      if (btn) {
+        btn.textContent = 'Downloading files...';
+      }
+
+      // Download backup files (JSON + HTML)
+      await this.backupBookmarks();
+
+      // Refresh the backup list to show the new backup
+      await this.refreshAutoBackups();
     } catch (error) {
       this.showMessage('Backup creation failed: ' + error.message, 'error');
     } finally {
@@ -1541,7 +1783,8 @@ class OptionsManager {
       backupKeys.push(backupKey);
 
       // Keep only last 10 backups to prevent storage overflow
-      if (backupKeys.length > 10) {
+      const MAX_AUTO_BACKUPS = 10;
+      if (backupKeys.length > MAX_AUTO_BACKUPS) {
         const oldKey = backupKeys.shift();
         await chrome.storage.local.remove(oldKey);
       }
@@ -1563,7 +1806,7 @@ class OptionsManager {
       if (!autoBackupsList) return;
 
       if (backupKeys.length === 0) {
-        autoBackupsList.innerHTML = '<div class="help-text">No automatic backups found. Backups are created automatically during operations.</div>';
+        this.setHelpText(autoBackupsList, 'No automatic backups found. Backups are created automatically during operations.');
         return;
       }
 
@@ -1585,7 +1828,7 @@ class OptionsManager {
       validBackups.sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));
 
       if (validBackups.length === 0) {
-        autoBackupsList.innerHTML = '<div class="help-text">No valid backups found.</div>';
+        this.setHelpText(autoBackupsList, 'No valid backups found.');
         return;
       }
 
@@ -1781,8 +2024,17 @@ class OptionsManager {
     }
 
     titleEl.textContent = title;
-    const formattedMessage = (message || '').replace(/\n/g, '<br>');
-    messageEl.innerHTML = formattedMessage || '';
+    // Safely set text content with preserved line breaks
+    messageEl.textContent = '';
+    if (message) {
+      const lines = message.split('\n');
+      lines.forEach((line, index) => {
+        messageEl.appendChild(document.createTextNode(line));
+        if (index < lines.length - 1) {
+          messageEl.appendChild(document.createElement('br'));
+        }
+      });
+    }
 
     confirmBtn.textContent = confirmText;
     cancelBtn.textContent = cancelText;
@@ -1852,37 +2104,6 @@ class OptionsManager {
 
   async restoreBackup(timestamp) {
     try {
-      const backupKey = this.getAutoBackupKey(timestamp);
-      const backupData = await chrome.storage.local.get([backupKey]);
-      const backup = backupData[backupKey];
-
-      if (!backup || !backup.bookmarks) {
-        throw new Error('Backup data not found or invalid');
-      }
-
-      const backupDate = this.getBackupDate(timestamp);
-      const dateLabel = backupDate ? backupDate.toLocaleString() : 'the selected backup';
-      const confirmed = await this.confirmWithText(`⚠️ RESTORE BACKUP CONFIRMATION\n\nThis will:\n• Delete ALL current bookmarks\n• Restore bookmarks from ${dateLabel}\n\nThis action cannot be undone. Continue?`, {
-        confirmText: 'Restore',
-        confirmVariant: 'danger'
-      });
-      if (!confirmed) return;
-
-      // Clear current bookmarks
-      await this.clearAllBookmarksInternal();
-
-      // Restore from backup
-      await this.restoreBookmarksFromData(backup.bookmarks);
-
-      this.showMessage('Backup restored successfully!', 'success');
-    } catch (error) {
-      console.error('Backup restore failed:', error);
-      this.showMessage('Backup restore failed: ' + error.message, 'error');
-    }
-  }
-
-  async restoreBackup(timestamp) {
-    try {
       const confirmed = await this.confirmWithText('⚠️ RESTORE FROM AUTO BACKUP\n\nThis will restore bookmarks from the selected automatic backup. Current bookmarks will be merged with backup contents.\n\nProceed with restore?', {
         confirmText: 'Restore',
         confirmVariant: 'primary'
@@ -1904,6 +2125,9 @@ class OptionsManager {
       // Restore using the backup data
       await this.restoreFromBackup(backup);
       this.showMessage('Auto backup restored successfully!', 'success');
+
+      // Refresh UI after restore
+      await this.refreshAutoBackups();
     } catch (error) {
       console.error('Auto backup restore failed:', error);
       this.showMessage('Auto backup restore failed: ' + error.message, 'error');
@@ -2024,6 +2248,10 @@ class OptionsManager {
 
       // Restore using the backup data
       await this.restoreFromBackup(backup);
+      this.showMessage('Latest backup restored successfully!', 'success');
+
+      // Refresh UI after restore
+      await this.refreshAutoBackups();
     } catch (error) {
       console.error('Failed to restore latest backup:', error);
       this.showMessage('Failed to restore latest backup: ' + error.message, 'error');
@@ -2466,11 +2694,13 @@ class OptionsManager {
       // Clear the stored data
       delete this._modifiedBookmarks;
 
-      if (errorCount === 0) {
-        this.showMessage(`✅ Successfully cleaned ${successCount} URLs! Tracking parameters removed.`, 'success');
-      } else {
-        this.showMessage(`Partially completed: ${successCount} cleaned, ${errorCount} failed.`, 'warning');
-      }
+      // Show detailed results
+      this.showCleanupResults('URL Parameter Cleaning', {
+        total: this._modifiedBookmarks.length,
+        success: successCount,
+        failed: errorCount,
+        message: 'Tracking parameters removed from bookmark URLs'
+      });
 
       this.cancelDuplicateScan();
 
@@ -2667,11 +2897,13 @@ class OptionsManager {
       // Clear the stored data
       delete this._emptyFolders;
 
-      if (errorCount === 0) {
-        this.showMessage(`✅ Successfully removed ${successCount} empty folders! Your bookmarks are now cleaner.`, 'success');
-      } else {
-        this.showMessage(`Partially completed: ${successCount} removed, ${errorCount} failed.`, 'warning');
-      }
+      // Show detailed results
+      this.showCleanupResults('Empty Folders Cleanup', {
+        total: sortedFolders.length,
+        success: successCount,
+        failed: errorCount,
+        message: 'Empty bookmark folders removed'
+      });
 
       this.cancelDuplicateScan();
 
@@ -2788,6 +3020,50 @@ class OptionsManager {
     }
   }
 
+  async handleRestoreBackupFile(event) {
+    const file = event.target.files[0];
+    if (!file) return;
+
+    const confirmed = await this.confirmWithText('⚠️ RESTORE WARNING\n\nThis will restore bookmarks from the selected backup file. Current bookmarks will be merged with backup contents.\n\nProceed with restore?', {
+      confirmText: 'Restore',
+      confirmVariant: 'danger'
+    });
+    if (!confirmed) {
+      event.target.value = ''; // Clear file selection
+      return;
+    }
+
+    try {
+      const btn = this.elements.restoreFromBackup;
+      if (btn) {
+        btn.disabled = true;
+        btn.textContent = 'Restoring...';
+      }
+
+      const text = await file.text();
+      const backupData = JSON.parse(text);
+
+      if (!backupData || !backupData.bookmarks) {
+        throw new Error('Invalid backup file format - missing bookmarks data');
+      }
+
+      await this.restoreFromBackup(backupData);
+      this.showMessage('Backup restored successfully', 'success');
+
+      // Refresh UI after restore
+      await this.refreshAutoBackups();
+    } catch (error) {
+      this.showMessage('Restore failed: ' + error.message, 'error');
+    } finally {
+      const btn = this.elements.restoreFromBackup;
+      if (btn) {
+        btn.disabled = false;
+        btn.textContent = 'Restore from Backup File';
+      }
+      event.target.value = ''; // Clear file selection
+    }
+  }
+
   async downloadManualBackup() {
     try {
       const btn = this.elements.downloadBackupFile;
@@ -2863,34 +3139,66 @@ class OptionsManager {
 
   async restoreFromBackup(backupData) {
     try {
+      // Validate backup data
+      if (!backupData || !backupData.bookmarks) {
+        throw new Error('Invalid backup data: missing bookmarks');
+      }
+
+      if (!Array.isArray(backupData.bookmarks)) {
+        throw new Error('Invalid backup data: bookmarks is not an array');
+      }
+
+      if (backupData.bookmarks.length === 0) {
+        throw new Error('Invalid backup data: bookmarks array is empty');
+      }
+
       // Get current bookmark tree structure to map folders correctly
       const currentTree = await chrome.bookmarks.getTree();
-      const bookmarkBarId = currentTree[0].children[0].id; // Usually '1'
-      const otherBookmarksId = currentTree[0].children[1].id; // Usually '2'
+
+      if (!currentTree || !currentTree[0] || !currentTree[0].children) {
+        throw new Error('Failed to read current bookmark tree structure');
+      }
+
+      const bookmarkBarId = currentTree[0].children[0]?.id || '1'; // Usually '1'
+      const otherBookmarksId = currentTree[0].children[1]?.id || '2'; // Usually '2'
+
+      let restoredCount = 0;
 
       // Create bookmarks from backup preserving original locations
       for (const rootNode of backupData.bookmarks) {
-        if (rootNode.children) {
-          for (const topLevelNode of rootNode.children) {
-            // Map original Chrome bookmark folders to current structure
-            let targetParentId;
+        if (!rootNode || !rootNode.children) {
+          continue; // Skip invalid nodes
+        }
 
-            if (topLevelNode.title === 'Bookmarks bar' || topLevelNode.id === '1') {
-              targetParentId = bookmarkBarId;
-            } else if (topLevelNode.title === 'Other bookmarks' || topLevelNode.id === '2') {
-              targetParentId = otherBookmarksId;
-            } else {
-              // For other folders, restore to Other Bookmarks
-              targetParentId = otherBookmarksId;
-            }
+        for (const topLevelNode of rootNode.children) {
+          if (!topLevelNode) {
+            continue; // Skip invalid nodes
+          }
 
-            if (topLevelNode.children) {
-              await this.createBookmarksFromTree(topLevelNode.children, targetParentId);
-            }
+          // Map original Chrome bookmark folders to current structure
+          let targetParentId;
+
+          if (topLevelNode.title === 'Bookmarks bar' || topLevelNode.id === '1') {
+            targetParentId = bookmarkBarId;
+          } else if (topLevelNode.title === 'Other bookmarks' || topLevelNode.id === '2') {
+            targetParentId = otherBookmarksId;
+          } else {
+            // For other folders, restore to Other Bookmarks
+            targetParentId = otherBookmarksId;
+          }
+
+          if (topLevelNode.children && Array.isArray(topLevelNode.children)) {
+            await this.createBookmarksFromTree(topLevelNode.children, targetParentId);
+            restoredCount += topLevelNode.children.length;
           }
         }
       }
-      console.log('Restore completed');
+
+      console.log(`Restore completed: ${restoredCount} items restored`);
+
+      if (restoredCount === 0) {
+        console.warn('Warning: No bookmarks were restored from backup');
+      }
     } catch (error) {
       console.error('Restore failed:', error);
       throw error;
@@ -3111,7 +3419,15 @@ class OptionsManager {
         }
       }
 
-      this.showMessage(`Auto cleanup completed! Removed ${removedBookmarks} duplicate bookmarks, merged ${mergedFolders} folder groups.`, 'success');
+      // Show detailed results
+      const totalDuplicates = this.duplicateAnalysis.bookmarks.reduce((sum, g) => sum + g.bookmarks.length - 1, 0) +
+                              this.duplicateAnalysis.folders.length;
+      this.showCleanupResults('Duplicate Cleanup', {
+        total: totalDuplicates,
+        success: removedBookmarks + mergedFolders,
+        failed: 0,
+        details: `${removedBookmarks} duplicate bookmarks removed, ${mergedFolders} folder groups merged`
+      });
 
       // Hide preview and clear results
       this.cancelDuplicateScan();
@@ -3196,24 +3512,58 @@ class OptionsManager {
     try {
       const data = JSON.parse(content);
 
+      if (!data || typeof data !== 'object') {
+        throw new Error('Invalid JSON: not an object');
+      }
+
+      let imported = false;
+
       // Handle our backup format
       if (data.bookmarks && Array.isArray(data.bookmarks)) {
-        await this.createBookmarksFromTree(data.bookmarks, '1'); // Import to Bookmarks Bar
-      }
-      // Handle Chrome bookmark export format
-      else if (data.roots) {
-        for (const [key, folder] of Object.entries(data.roots)) {
-          if (folder.children) {
-            const targetId = key === 'bookmark_bar' ? '1' : '2';
-            await this.createBookmarksFromTree(folder.children, targetId);
+        // Our backup format contains full tree structure
+        for (const rootNode of data.bookmarks) {
+          if (rootNode && rootNode.children) {
+            for (const topLevelNode of rootNode.children) {
+              if (topLevelNode && topLevelNode.children) {
+                // Determine target folder
+                let targetId = '2'; // Default to Other Bookmarks
+                if (topLevelNode.title === 'Bookmarks bar' || topLevelNode.id === '1') {
+                  targetId = '1';
+                }
+                await this.createBookmarksFromTree(topLevelNode.children, targetId);
+                imported = true;
+              }
+            }
           }
         }
       }
+      // Handle Chrome bookmark export format
+      else if (data.roots && typeof data.roots === 'object') {
+        for (const [key, folder] of Object.entries(data.roots)) {
+          if (folder && folder.children && Array.isArray(folder.children)) {
+            const targetId = key === 'bookmark_bar' ? '1' : '2';
+            await this.createBookmarksFromTree(folder.children, targetId);
+            imported = true;
+          }
+        }
+      }
+      // Handle simple bookmark array format
+      else if (Array.isArray(data)) {
+        await this.createBookmarksFromTree(data, '1');
+        imported = true;
+      }
       else {
-        throw new Error('Unrecognized JSON format');
+        throw new Error('Unrecognized JSON format. Expected backup format or Chrome export format.');
+      }
+
+      if (!imported) {
+        throw new Error('No bookmarks found in the file');
       }
     } catch (error) {
-      throw new Error(`Invalid JSON: ${error.message}`);
+      if (error.name === 'SyntaxError') {
+        throw new Error('Invalid JSON file: ' + error.message);
+      }
+      throw error;
     }
   }
 
@@ -3243,25 +3593,45 @@ class OptionsManager {
   }
 
   async createBookmarksFromTree(nodes, parentId) {
+    if (!nodes || !Array.isArray(nodes)) {
+      console.warn('createBookmarksFromTree: Invalid nodes parameter', nodes);
+      return;
+    }
+
     for (const node of nodes) {
       try {
+        if (!node) {
+          continue; // Skip null/undefined nodes
+        }
+
         if (node.url) {
-          // It's a bookmark
+          // It's a bookmark - validate URL
+          if (!node.url.startsWith('http://') && !node.url.startsWith('https://') && !node.url.startsWith('chrome://') && !node.url.startsWith('about:')) {
+            console.warn('Skipping invalid URL:', node.url);
+            continue;
+          }
+
+          // Preserve empty titles (for favicon-only bookmarks)
+          // Use title/name if exists, otherwise empty string (NOT url)
+          const bookmarkTitle = node.title !== undefined ? node.title : (node.name !== undefined ? node.name : '');
+
           await chrome.bookmarks.create({
             parentId: parentId,
-            title: node.name || node.title || node.url,
+            title: bookmarkTitle,
             url: node.url
           });
-        } else if (node.children) {
+        } else if (node.children && Array.isArray(node.children)) {
           // It's a folder
+          const folderTitle = node.title !== undefined ? node.title : (node.name !== undefined ? node.name : 'Imported Folder');
+
           const folder = await chrome.bookmarks.create({
             parentId: parentId,
-            title: node.name || node.title || 'Imported Folder'
+            title: folderTitle
           });
           await this.createBookmarksFromTree(node.children, folder.id);
         }
       } catch (error) {
-        console.warn('Failed to import item:', node, error);
+        console.warn('Failed to import item:', node?.title || node?.url || 'unknown', error.message);
       }
     }
   }
@@ -5339,19 +5709,19 @@ class OptionsManager {
 
   updateThemePreview() {
     const el = this.elements.themePreview; if (!el) return;
-    const id = this.elements.themeSelect?.value || 'default';
+    const id = this.elements.themeSelect?.value || 'slate';
     const palettes = {
-      default: ['#2563eb', '#1d4ed8', '#1e40af'],
-      nordic: ['#5e81ac', '#4c566a', '#434c5e'],
-      emerald: ['#059669', '#047857', '#065f46'],
-      sunset: ['#ea580c', '#c2410c', '#9a3412'],
-      lavender: ['#8b5cf6', '#7c3aed', '#6d28d9'],
-      rose: ['#e11d48', '#be123c', '#9f1239'],
-      slate: ['#475569', '#334155', '#1e293b'],
-      cyber: ['#06b6d4', '#0891b2', '#0e7490']
+      slate: ['#64748b', '#475569', '#334155'],
+      charcoal: ['#52525b', '#3f3f46', '#27272a'],
+      ocean: ['#5b7c99', '#456073', '#34495e']
     };
-    const arr = palettes[id] || palettes.default;
-    el.innerHTML = arr.map(c => `<span style="display:inline-block;width:14px;height:14px;border-radius:50%;background:${c};border:1px solid rgba(0,0,0,0.15);"></span>`).join('');
+    const arr = palettes[id] || palettes.slate;
+    el.textContent = '';
+    arr.forEach(c => {
+      const span = document.createElement('span');
+      span.style.cssText = `display:inline-block;width:16px;height:16px;border-radius:3px;background:${c};border:1px solid rgba(0,0,0,0.1);`;
+      el.appendChild(span);
+    });
   }
 
   // Color mode (dark/light)
@@ -5392,11 +5762,724 @@ class OptionsManager {
     }
     this.setNotificationHeight(height);
   }
+
+  // Security: Safe DOM manipulation utilities
+  setHelpText(element, text) {
+    if (!element) return;
+    element.textContent = '';
+    const div = document.createElement('div');
+    div.className = 'help-text';
+    div.textContent = text;
+    element.appendChild(div);
+  }
+
+  clearAndSetText(element, text, className = '') {
+    if (!element) return;
+    element.textContent = '';
+    if (text) {
+      if (className) {
+        const wrapper = document.createElement('div');
+        wrapper.className = className;
+        wrapper.textContent = text;
+        element.appendChild(wrapper);
+      } else {
+        element.textContent = text;
+      }
+    }
+  }
+
+  initSidebarCollapse() {
+    // Load saved collapse states from localStorage
+    const savedStates = JSON.parse(localStorage.getItem('sidebarCollapseStates') || '{}');
+
+    // Get all collapsible sections
+    const collapsibleTitles = document.querySelectorAll('.sidebar-title.collapsible');
+
+    collapsibleTitles.forEach(title => {
+      const sectionName = title.dataset.section;
+      const linksContainer = document.querySelector(`[data-links="${sectionName}"]`);
+
+      if (!linksContainer) return;
+
+      // Apply saved state (default: expanded)
+      if (savedStates[sectionName] === 'collapsed') {
+        title.classList.add('collapsed');
+        linksContainer.classList.add('collapsed');
+      }
+
+      // Add click handler
+      title.addEventListener('click', () => {
+        const isCollapsed = title.classList.toggle('collapsed');
+        linksContainer.classList.toggle('collapsed');
+
+        // Save state
+        savedStates[sectionName] = isCollapsed ? 'collapsed' : 'expanded';
+        localStorage.setItem('sidebarCollapseStates', JSON.stringify(savedStates));
+      });
+    });
+  }
+
+  async checkFirstRun() {
+    // Check if user has seen welcome screen
+    const { hasSeenWelcome } = await chrome.storage.sync.get(['hasSeenWelcome']);
+
+    if (!hasSeenWelcome) {
+      this.showWelcomeScreen();
+    }
+  }
+
+  showWelcomeScreen() {
+    const overlay = document.getElementById('welcomeOverlay');
+    const startBtn = document.getElementById('welcomeStart');
+    const skipBtn = document.getElementById('welcomeSkip');
+
+    if (!overlay) return;
+
+    // Show the overlay
+    overlay.classList.add('show');
+
+    // Handle "Let's Get Started" button
+    if (startBtn) {
+      startBtn.addEventListener('click', async () => {
+        await chrome.storage.sync.set({ hasSeenWelcome: true });
+        overlay.classList.remove('show');
+        // Navigate to Connect tab
+        this.showTab('api');
+      });
+    }
+
+    // Handle "Skip Tour" button
+    if (skipBtn) {
+      skipBtn.addEventListener('click', async () => {
+        await chrome.storage.sync.set({ hasSeenWelcome: true });
+        overlay.classList.remove('show');
+      });
+    }
+  }
+
+  async resetToDefaults() {
+    const confirmed = await this.confirmWithText(
+      '🔄 Reset to Default Settings',
+      'This will restore all settings to their recommended defaults:\n\n• Sync interval: 15 minutes\n• Sync mode: Additions only (safe)\n• Auto backup: Enabled\n• Managed OAuth: Enabled\n\nYour bookmarks and Raindrop connection will not be affected.\n\nContinue?',
+      { confirmText: 'Reset', confirmVariant: 'primary' }
+    );
+
+    if (!confirmed) return;
+
+    try {
+      // Get default config from background script
+      const SMART_DEFAULTS = {
+        syncEnabled: false, // User must configure settings first
+        syncIntervalMinutes: 15,
+        twoWayMode: 'additions_only',
+        targetFolderId: '1',
+        useSubfolder: false,
+        managedOAuth: true,
+        managedOAuthBaseUrl: 'https://rdoauth.daiquiri.dev',
+        collectionMode: 'parentOnly',
+        collectionsSort: 'alpha_asc',
+        bookmarksSort: 'created_desc',
+        rateLimitRpm: 60,
+        autoBackupEnabled: true,
+        createBackupBeforeSync: true
+      };
+
+      // Keep authentication tokens and user data
+      const { accessToken, refreshToken, tokenExpiresAt, clientId, clientSecret } =
+        await chrome.storage.sync.get(['accessToken', 'refreshToken', 'tokenExpiresAt', 'clientId', 'clientSecret']);
+
+      // Apply defaults
+      await chrome.storage.sync.set(SMART_DEFAULTS);
+
+      // Restore auth if it existed
+      if (accessToken) {
+        await chrome.storage.sync.set({ accessToken, refreshToken, tokenExpiresAt });
+      }
+      if (clientId) {
+        await chrome.storage.sync.set({ clientId, clientSecret });
+      }
+
+      this.showMessage('✅ Settings reset to defaults successfully!', 'success');
+
+      // Reload the page to reflect changes
+      setTimeout(() => {
+        window.location.reload();
+      }, 1000);
+
+    } catch (error) {
+      this.showMessage(`❌ Reset failed: ${error.message}`, 'error');
+    }
+  }
+
+  showCleanupResults(operationName, results) {
+    const { total, success, failed, message, details } = results;
+
+    const successRate = total > 0 ? Math.round((success / total) * 100) : 0;
+    const status = failed === 0 ? 'success' : (success > 0 ? 'warning' : 'error');
+    const icon = failed === 0 ? '✅' : (success > 0 ? '⚠️' : '❌');
+
+    let resultHTML = `
+      <div style="margin: 20px 0; padding: 16px; background: ${status === 'success' ? '#d4edda' : status === 'warning' ? '#fff3cd' : '#f8d7da'};
+                  border: 1px solid ${status === 'success' ? '#c3e6cb' : status === 'warning' ? '#ffeaa7' : '#f5c6cb'};
+                  border-radius: 6px;">
+        <h4 style="margin: 0 0 12px 0; color: ${status === 'success' ? '#155724' : status === 'warning' ? '#856404' : '#721c24'};">
+          ${icon} ${operationName} Complete
+        </h4>
+
+        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(120px, 1fr)); gap: 12px; margin-bottom: 12px;">
+          <div style="background: white; padding: 8px; border-radius: 4px; text-align: center;">
+            <div style="font-size: 24px; font-weight: 700; color: #333;">${total}</div>
+            <div style="font-size: 11px; color: #666; text-transform: uppercase;">Total</div>
+          </div>
+          <div style="background: white; padding: 8px; border-radius: 4px; text-align: center;">
+            <div style="font-size: 24px; font-weight: 700; color: #28a745;">${success}</div>
+            <div style="font-size: 11px; color: #666; text-transform: uppercase;">Success</div>
+          </div>
+          ${failed > 0 ? `
+            <div style="background: white; padding: 8px; border-radius: 4px; text-align: center;">
+              <div style="font-size: 24px; font-weight: 700; color: #dc3545;">${failed}</div>
+              <div style="font-size: 11px; color: #666; text-transform: uppercase;">Failed</div>
+            </div>
+          ` : ''}
+          <div style="background: white; padding: 8px; border-radius: 4px; text-align: center;">
+            <div style="font-size: 24px; font-weight: 700; color: #007bff;">${successRate}%</div>
+            <div style="font-size: 11px; color: #666; text-transform: uppercase;">Success Rate</div>
+          </div>
+        </div>
+
+        ${message ? `<div style="color: #333; font-size: 13px; margin-bottom: 8px;">${message}</div>` : ''}
+        ${details ? `<div style="color: #666; font-size: 12px; font-style: italic;">${details}</div>` : ''}
+      </div>
+    `;
+
+    const resultsContainer = this.elements.duplicateResults;
+    if (resultsContainer) {
+      resultsContainer.innerHTML = resultHTML;
+      this.elements.duplicatePreview.classList.remove('hidden');
+
+      // Auto-hide after 10 seconds
+      setTimeout(() => {
+        if (this.elements.duplicatePreview) {
+          this.elements.duplicatePreview.classList.add('hidden');
+        }
+      }, 10000);
+    }
+
+    // Also show a quick message
+    if (failed === 0) {
+      this.showMessage(`${icon} ${operationName}: ${success}/${total} completed successfully!`, status);
+    } else {
+      this.showMessage(`${icon} ${operationName}: ${success} succeeded, ${failed} failed`, status);
+    }
+  }
+}
+
+// === New Features: Countdown, Diagnostics, Activity Log, Keyboard Shortcuts ===
+class FeatureEnhancements {
+  constructor() {
+    this.activityLog = [];
+    this.maxLogEntries = 10;
+    this.init();
+  }
+
+  init() {
+    this.setupCountdown();
+    this.setupDiagnostics();
+    this.setupActivityLog();
+    this.setupKeyboardShortcuts();
+    this.setupRetryButton();
+    this.setupLoadingStates();
+    this.setupQuietHours();
+    this.setupConditionalSync();
+    this.setupProgressBar();
+    this.setupQuickStatusBadges();
+    this.setupBackupVersioning();
+    this.setupSettingsExportImport();
+    this.setupSyncHistory();
+    this.setupActivityLogSearch();
+    this.setupQuickActions();
+  }
+
+  // Countdown Timer
+  setupCountdown() {
+    const countdownEl = document.getElementById('nextSyncCountdown');
+    const timerEl = document.getElementById('countdownTimer');
+    if (!countdownEl || !timerEl) return;
+
+    chrome.storage.sync.get(['syncInterval', 'autoSync'], ({ syncInterval, autoSync }) => {
+      if (!autoSync) return;
+      const interval = parseInt(syncInterval) || 15;
+      const nextSync = Date.now() + interval * 60 * 1000;
+
+      countdownEl.style.display = 'block';
+
+      setInterval(() => {
+        const remaining = Math.max(0, nextSync - Date.now());
+        const mins = Math.floor(remaining / 60000);
+        const secs = Math.floor((remaining % 60000) / 1000);
+        timerEl.textContent = `${mins}:${secs.toString().padStart(2, '0')}`;
+      }, 1000);
+    });
+  }
+
+  // Copy Diagnostics
+  setupDiagnostics() {
+    const btn = document.getElementById('copyDiagnostics');
+    if (!btn) return;
+
+    btn.addEventListener('click', async () => {
+      const data = await chrome.storage.sync.get(null);
+      const manifest = chrome.runtime.getManifest();
+
+      const diagnostics = `
+=== Open Bookmark Sync Diagnostics ===
+Version: ${manifest.version}
+Date: ${new Date().toISOString()}
+
+Settings:
+- Sync Mode: ${data.syncMode || 'additions_only'}
+- Auto Sync: ${data.autoSync ? 'Enabled' : 'Disabled'}
+- Sync Interval: ${data.syncInterval || 15} minutes
+- OAuth Method: ${data.useCloudflareOAuth ? 'Managed' : 'Manual'}
+
+Last Sync:
+- Status: ${data.lastSyncStatus || 'Never synced'}
+- Time: ${data.lastSyncTime || 'N/A'}
+- Items: ${data.lastSyncItems || 0}
+
+Activity Log:
+${this.activityLog.slice(-5).map(e => `[${e.time}] ${e.action}: ${e.status}`).join('\n')}
+
+Browser: ${navigator.userAgent}
+      `.trim();
+
+      await navigator.clipboard.writeText(diagnostics);
+      btn.textContent = '✅ Copied!';
+      setTimeout(() => btn.textContent = '📋 Copy Diagnostics for Issue Report', 2000);
+    });
+  }
+
+  // Activity Log
+  setupActivityLog() {
+    const container = document.getElementById('activityLogContainer');
+    const clearBtn = document.getElementById('clearActivityLog');
+    if (!container) return;
+
+    chrome.storage.local.get(['activityLog'], ({ activityLog }) => {
+      if (activityLog) {
+        this.activityLog = activityLog;
+        this.renderActivityLog();
+      }
+    });
+
+    clearBtn?.addEventListener('click', () => {
+      this.activityLog = [];
+      chrome.storage.local.set({ activityLog: [] });
+      this.renderActivityLog();
+    });
+  }
+
+  addActivity(action, status, details = '') {
+    const entry = {
+      time: new Date().toLocaleTimeString(),
+      action,
+      status,
+      details
+    };
+    this.activityLog.push(entry);
+    if (this.activityLog.length > this.maxLogEntries) {
+      this.activityLog.shift();
+    }
+    chrome.storage.local.set({ activityLog: this.activityLog });
+    this.renderActivityLog();
+  }
+
+  renderActivityLog() {
+    const container = document.getElementById('activityLogContainer');
+    if (!container) return;
+
+    if (this.activityLog.length === 0) {
+      container.innerHTML = '<div style="color: #999;">No activity yet...</div>';
+      return;
+    }
+
+    container.innerHTML = this.activityLog.slice().reverse().map(e => `
+      <div style="padding: 4px 0; border-bottom: 1px solid #e9ecef;">
+        <span style="color: #999;">[${e.time}]</span>
+        <span style="font-weight: 600;">${e.action}</span>:
+        <span style="color: ${e.status === 'success' ? '#10b981' : '#dc3545'};">${e.status}</span>
+        ${e.details ? `<span style="color: #666;"> - ${e.details}</span>` : ''}
+      </div>
+    `).join('');
+  }
+
+  // Keyboard Shortcuts
+  setupKeyboardShortcuts() {
+    document.addEventListener('keydown', (e) => {
+      if ((e.ctrlKey || e.metaKey) && e.key === 's') {
+        e.preventDefault();
+        document.getElementById('syncNow')?.click();
+      }
+      if ((e.ctrlKey || e.metaKey) && e.key === 'b') {
+        e.preventDefault();
+        document.getElementById('backupNow')?.click();
+      }
+    });
+  }
+
+  // Retry Button
+  setupRetryButton() {
+    const retryBtn = document.getElementById('retrySyncBtn');
+    if (!retryBtn) return;
+
+    retryBtn.addEventListener('click', () => {
+      document.getElementById('syncNow')?.click();
+      retryBtn.style.display = 'none';
+    });
+  }
+
+  // Loading States
+  setupLoadingStates() {
+    const addLoadingState = (btnId) => {
+      const btn = document.getElementById(btnId);
+      if (!btn) return;
+
+      const originalClick = btn.onclick;
+      btn.onclick = async function(e) {
+        btn.classList.add('loading');
+        const spinner = document.createElement('span');
+        spinner.className = 'spinner';
+        btn.insertBefore(spinner, btn.firstChild);
+
+        try {
+          if (originalClick) await originalClick.call(this, e);
+        } finally {
+          setTimeout(() => {
+            btn.classList.remove('loading');
+            spinner.remove();
+          }, 1000);
+        }
+      };
+    };
+
+    ['syncNow', 'backupNow', 'restoreBackup'].forEach(addLoadingState);
+  }
+
+  showSyncMetrics(items, duration) {
+    const metricsEl = document.getElementById('syncMetrics');
+    const statsEl = document.getElementById('lastSyncStats');
+    if (!metricsEl || !statsEl) return;
+
+    const itemsPerSec = (items / (duration / 1000)).toFixed(1);
+    statsEl.textContent = `${items} items in ${(duration / 1000).toFixed(1)}s (${itemsPerSec} items/sec)`;
+    metricsEl.style.display = 'block';
+  }
+
+  showRetryButton() {
+    const retryBtn = document.getElementById('retrySyncBtn');
+    if (retryBtn) retryBtn.style.display = 'inline-block';
+  }
+
+  // Quiet Hours
+  setupQuietHours() {
+    const toggle = document.getElementById('quietHoursEnabled');
+    const settings = document.getElementById('quietHoursSettings');
+    const startInput = document.getElementById('quietHoursStart');
+    const endInput = document.getElementById('quietHoursEnd');
+
+    if (!toggle) return;
+
+    chrome.storage.sync.get(['quietHoursEnabled', 'quietHoursStart', 'quietHoursEnd'], (data) => {
+      toggle.checked = data.quietHoursEnabled || false;
+      startInput.value = data.quietHoursStart || '23:00';
+      endInput.value = data.quietHoursEnd || '07:00';
+      settings.style.display = toggle.checked ? 'block' : 'none';
+    });
+
+    toggle.addEventListener('change', () => {
+      settings.style.display = toggle.checked ? 'block' : 'none';
+      this.saveQuietHours();
+    });
+
+    startInput?.addEventListener('change', () => this.saveQuietHours());
+    endInput?.addEventListener('change', () => this.saveQuietHours());
+  }
+
+  saveQuietHours() {
+    const enabled = document.getElementById('quietHoursEnabled')?.checked;
+    const start = document.getElementById('quietHoursStart')?.value;
+    const end = document.getElementById('quietHoursEnd')?.value;
+
+    chrome.storage.sync.set({ quietHoursEnabled: enabled, quietHoursStart: start, quietHoursEnd: end });
+    this.updateQuickStatusBadges();
+  }
+
+  isQuietHours() {
+    const now = new Date();
+    const currentTime = now.getHours() * 60 + now.getMinutes();
+
+    const start = document.getElementById('quietHoursStart')?.value || '23:00';
+    const end = document.getElementById('quietHoursEnd')?.value || '07:00';
+
+    const [startH, startM] = start.split(':').map(Number);
+    const [endH, endM] = end.split(':').map(Number);
+
+    const startMin = startH * 60 + startM;
+    const endMin = endH * 60 + endM;
+
+    if (startMin < endMin) {
+      return currentTime >= startMin && currentTime < endMin;
+    } else {
+      return currentTime >= startMin || currentTime < endMin;
+    }
+  }
+
+  // Conditional Sync
+  setupConditionalSync() {
+    const lowBattery = document.getElementById('pauseOnLowBattery');
+    const metered = document.getElementById('pauseOnMetered');
+
+    chrome.storage.sync.get(['pauseOnLowBattery', 'pauseOnMetered'], (data) => {
+      if (lowBattery) lowBattery.checked = data.pauseOnLowBattery || false;
+      if (metered) metered.checked = data.pauseOnMetered || false;
+    });
+
+    lowBattery?.addEventListener('change', () => {
+      chrome.storage.sync.set({ pauseOnLowBattery: lowBattery.checked });
+      this.updateQuickStatusBadges();
+    });
+
+    metered?.addEventListener('change', () => {
+      chrome.storage.sync.set({ pauseOnMetered: metered.checked });
+      this.updateQuickStatusBadges();
+    });
+
+    // Check battery status
+    if ('getBattery' in navigator) {
+      navigator.getBattery().then(battery => {
+        this.batteryLevel = battery.level;
+        battery.addEventListener('levelchange', () => {
+          this.batteryLevel = battery.level;
+          this.updateQuickStatusBadges();
+        });
+      });
+    }
+  }
+
+  // Progress Bar
+  setupProgressBar() {
+    this.progressContainer = document.getElementById('syncProgress');
+    this.progressBar = document.getElementById('syncProgressBar');
+  }
+
+  showProgress(percent, text = '') {
+    if (!this.progressContainer || !this.progressBar) return;
+    this.progressContainer.classList.add('visible');
+    this.progressBar.style.width = `${percent}%`;
+    this.progressBar.textContent = text || `${percent}%`;
+  }
+
+  hideProgress() {
+    if (!this.progressContainer) return;
+    this.progressContainer.classList.remove('visible');
+    this.progressBar.style.width = '0%';
+  }
+
+  // Quick Status Badges
+  setupQuickStatusBadges() {
+    setInterval(() => this.updateQuickStatusBadges(), 30000); // Update every 30s
+    this.updateQuickStatusBadges();
+  }
+
+  updateQuickStatusBadges() {
+    const quietBadge = document.getElementById('quietHoursBadge');
+    const batteryBadge = document.getElementById('lowBatteryBadge');
+    const meteredBadge = document.getElementById('meteredBadge');
+
+    chrome.storage.sync.get(['quietHoursEnabled', 'pauseOnLowBattery', 'pauseOnMetered'], (data) => {
+      if (quietBadge && data.quietHoursEnabled && this.isQuietHours()) {
+        quietBadge.style.display = 'inline-block';
+      } else if (quietBadge) {
+        quietBadge.style.display = 'none';
+      }
+
+      if (batteryBadge && data.pauseOnLowBattery && this.batteryLevel < 0.2) {
+        batteryBadge.style.display = 'inline-block';
+      } else if (batteryBadge) {
+        batteryBadge.style.display = 'none';
+      }
+
+      if (meteredBadge && data.pauseOnMetered && navigator.connection?.saveData) {
+        meteredBadge.style.display = 'inline-block';
+      } else if (meteredBadge) {
+        meteredBadge.style.display = 'none';
+      }
+    });
+  }
+
+  // Backup Versioning
+  setupBackupVersioning() {
+    const container = document.getElementById('backupVersionHistory');
+    const refreshBtn = document.getElementById('refreshBackupHistory');
+
+    if (!container) return;
+
+    const loadBackupHistory = () => {
+      chrome.storage.local.get(['autoBackups'], ({ autoBackups }) => {
+        if (!autoBackups || autoBackups.length === 0) {
+          container.innerHTML = '<div class="help-text">No backup history available.</div>';
+          return;
+        }
+
+        container.innerHTML = autoBackups.slice().reverse().map((backup, idx) => {
+          const date = new Date(backup.timestamp);
+          const size = (JSON.stringify(backup.data).length / 1024).toFixed(1);
+          return `
+            <div style="padding: 10px; border-bottom: 1px solid #e9ecef; display: flex; justify-content: space-between; align-items: center;">
+              <div>
+                <div style="font-weight: 600; margin-bottom: 4px;">${date.toLocaleString()}</div>
+                <div style="font-size: 11px; color: #666;">${size} KB • ${backup.data?.length || 0} items</div>
+              </div>
+              <button class="button" style="height: 28px; padding: 0 10px; font-size: 11px;" onclick="window.featureEnhancements.restoreBackupVersion(${autoBackups.length - 1 - idx})">Restore</button>
+            </div>
+          `;
+        }).join('');
+      });
+    };
+
+    refreshBtn?.addEventListener('click', loadBackupHistory);
+    loadBackupHistory();
+  }
+
+  restoreBackupVersion(index) {
+    if (!confirm('Restore this backup? Current bookmarks will be replaced.')) return;
+    chrome.storage.local.get(['autoBackups'], ({ autoBackups }) => {
+      if (autoBackups && autoBackups[index]) {
+        window.optionsApp?.restoreFromBackup(autoBackups[index].data);
+        this.addActivity('Backup Restore', 'success', `Restored from ${new Date(autoBackups[index].timestamp).toLocaleString()}`);
+      }
+    });
+  }
+
+  // Settings Export/Import
+  setupSettingsExportImport() {
+    const exportBtn = document.getElementById('exportSettings');
+    const importBtn = document.getElementById('importSettings');
+    const fileInput = document.getElementById('importSettingsFile');
+
+    exportBtn?.addEventListener('click', async () => {
+      const settings = await chrome.storage.sync.get(null);
+      const blob = new Blob([JSON.stringify(settings, null, 2)], { type: 'application/json' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `bookmark-sync-settings-${Date.now()}.json`;
+      a.click();
+      URL.revokeObjectURL(url);
+      this.addActivity('Settings Export', 'success', 'Settings exported successfully');
+    });
+
+    importBtn?.addEventListener('click', () => fileInput?.click());
+
+    fileInput?.addEventListener('change', async (e) => {
+      const file = e.target.files[0];
+      if (!file) return;
+
+      const text = await file.text();
+      try {
+        const settings = JSON.parse(text);
+        await chrome.storage.sync.set(settings);
+        alert('Settings imported successfully! Page will reload.');
+        location.reload();
+      } catch (err) {
+        alert('Failed to import settings: ' + err.message);
+      }
+    });
+  }
+
+  // Sync History
+  setupSyncHistory() {
+    const container = document.getElementById('syncHistoryTimeline');
+    const exportBtn = document.getElementById('exportSyncHistory');
+
+    chrome.storage.local.get(['syncHistory'], ({ syncHistory }) => {
+      if (!syncHistory || syncHistory.length === 0) {
+        container.innerHTML = '<div style="color: #999;">No sync history yet...</div>';
+        return;
+      }
+
+      container.innerHTML = syncHistory.slice(-20).reverse().map(entry => {
+        const color = entry.status === 'success' ? '#10b981' : '#dc3545';
+        return `
+          <div style="padding: 12px; border-left: 3px solid ${color}; margin-bottom: 8px; background: white; border-radius: 4px;">
+            <div style="display: flex; justify-content: space-between; margin-bottom: 4px;">
+              <span style="font-weight: 600;">${entry.timestamp}</span>
+              <span style="color: ${color};">${entry.status.toUpperCase()}</span>
+            </div>
+            <div style="font-size: 11px; color: #666;">${entry.details || 'No details'}</div>
+          </div>
+        `;
+      }).join('');
+    });
+
+    exportBtn?.addEventListener('click', () => {
+      chrome.storage.local.get(['syncHistory'], ({ syncHistory }) => {
+        const blob = new Blob([JSON.stringify(syncHistory, null, 2)], { type: 'application/json' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `sync-history-${Date.now()}.json`;
+        a.click();
+        URL.revokeObjectURL(url);
+      });
+    });
+  }
+
+  addSyncHistoryEntry(status, details) {
+    chrome.storage.local.get(['syncHistory'], ({ syncHistory }) => {
+      const history = syncHistory || [];
+      history.push({
+        timestamp: new Date().toLocaleString(),
+        status,
+        details
+      });
+      if (history.length > 50) history.shift();
+      chrome.storage.local.set({ syncHistory: history });
+    });
+  }
+
+  // Activity Log Search
+  setupActivityLogSearch() {
+    const searchInput = document.getElementById('activityLogSearch');
+    if (!searchInput) return;
+
+    searchInput.addEventListener('input', (e) => {
+      const query = e.target.value.toLowerCase();
+      const entries = document.querySelectorAll('#activityLogContainer > div');
+
+      entries.forEach(entry => {
+        const text = entry.textContent.toLowerCase();
+        entry.style.display = text.includes(query) ? 'block' : 'none';
+      });
+    });
+  }
+
+  // Quick Actions (FAB)
+  setupQuickActions() {
+    document.getElementById('fabSync')?.addEventListener('click', () => {
+      document.getElementById('syncNow')?.click();
+    });
+
+    document.getElementById('fabBackup')?.addEventListener('click', () => {
+      document.getElementById('createBackup')?.click();
+    });
+  }
 }
 
 document.addEventListener('DOMContentLoaded', () => {
   const app = new OptionsManager();
-  window.optionsManager = app; // Global reference for fallback buttons
-  window.optionsApp = app; // Global reference for local backup functions
+  window.optionsManager = app;
+  window.optionsApp = app;
+  window.featureEnhancements = new FeatureEnhancements();
   try { app.openRoadmapLink?.(); } catch (_) {}
 });
